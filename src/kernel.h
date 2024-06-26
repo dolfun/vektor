@@ -7,8 +7,8 @@ template <int N>
 struct Kernel {
   static_assert(N % 2 == 1);
   
-  constexpr int operator()(int x, int y) const noexcept {
-    return data[N * y + x];
+  constexpr float operator()(int x, int y) const noexcept {
+    return static_cast<float>(data[N * y + x]);
   }
 
   constexpr int size() const noexcept {

@@ -23,20 +23,6 @@ ColorImage load(const char* path, int padding) {
   return image;
 }
 
-void save_as_png(const GreyscaleImage& image, const char* path) {
-  const int width = image.width();
-  const int height = image.height();
-  constexpr int nr_channels = 3;
-  std::vector<unsigned char> data(width * height * nr_channels);
-
-  apply(width, height, [&] (int x, int y) {
-    int index = y * width + x;
-    unsigned char value = static_cast<unsigned char>(image(x, y) * 255.9999f);
-    data[nr_channels * index] = data[nr_channels * index + 1] = data[nr_channels * index + 2] = value;
-  });
-
-  int stride = width * nr_channels;
-  stbi_write_png(path, width, height, nr_channels, data.data(), stride);
-}
+int (*stbi_write_png_impl)(const char*, int, int, int, const void*, int) = &stbi_write_png;
 
 } // namespace Image

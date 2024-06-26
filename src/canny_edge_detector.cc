@@ -1,11 +1,11 @@
 #include "canny_edge_detector.h"
 #include <glm/glm.hpp>
+#include <algorithm>
 #include <numeric>
 #include <numbers>
 #include <utility>
 #include <cassert>
 #include <ranges>
-#include <cmath>
 #include <stack>
 
 using Image::ColorImage;
@@ -14,33 +14,31 @@ constexpr auto pi = std::numbers::pi_v<float>;
 
 namespace Canny {
 
-GreyscaleImage apply_adaptive_blur(const GreyscaleImage& image, float h, int nr_iterations = 1) {
+ColorImage apply_adaptive_blur(const ColorImage& image, float h, int nr_iterations = 1) {
   int width = image.width();
   int height = image.height();
 
-  GreyscaleImage result = image;
+  ColorImage result = image;
   for (int iter = 0; iter < nr_iterations; ++iter) {
-    GreyscaleImage source = std::move(result);
-    result = GreyscaleImage { width, height, gradient_x_kernel.size() / 2 };
+    ColorImage source = std::move(result);
+    result = ColorImage { width, height, gradient_x_kernel.size() / 2 };
 
-    GreyscaleImage weights { width, height, 1 };
-    int inset = 3;
-    Image::apply_with_inset(width, height, inset, inset, [&] (int x, int y) {
-      float grad_x = Image::evaluate_kernel(gradient_x_kernel, source, x, y);
-      float grad_y = Image::evaluate_kernel(gradient_y_kernel, source, x, y);
-      weights(x, y) = std::expf(-std::powf(grad_x * grad_x + grad_y * grad_y, 0.25f) / (2.0f * h * h));
+    ColorImage weights { width, height, 1 };
+    Image::apply(width, height, [&] (int x, int y) {
+      auto grad_x = Image::evaluate_kernel<glm::vec3>(gradient_x_kernel, source, x, y);
+      auto grad_y = Image::evaluate_kernel<glm::vec3>(gradient_y_kernel, source, x, y);
+      weights(x, y) = glm::exp(-glm::sqrt(glm::sqrt(grad_x * grad_x + grad_y * grad_y)) / (2.0f * h * h));
     });
 
-    Image::apply_with_inset(width, height, inset, inset, [&] (int x, int y) {
-      float weight_sum = 0.0f;
+    Image::apply(width, height, [&] (int x, int y) {
+      glm::vec3 weight_sum { 0.0f };
       for (int j = -1; j <= 1; ++j) {
         for (int i = -1; i <= 1; ++i) {
-          float weight = weights(x + i, y + j);
+          glm::vec3 weight = weights(x + i, y + j);
           result(x, y) += source(x + i, y + j) * weight;
           weight_sum += weight;
         }
       }
-
       result(x, y) /= weight_sum;
     });
   }
@@ -49,21 +47,34 @@ GreyscaleImage apply_adaptive_blur(const GreyscaleImage& image, float h, int nr_
 }
 
 using GradientImage_t = Image::Image<std::pair<float, float>>;
-GradientImage_t compute_gradient(const GreyscaleImage& image) {
+GradientImage_t compute_gradient(const ColorImage& image) {
   int width = image.width();
   int height = image.height();
   GradientImage_t result { width, height, 1 };
 
   float max_magnitude = 0.0f;
-  int inset = gradient_x_kernel.size();
+  int inset = 0;
   Image::apply_with_inset(width, height, inset, inset, [&] (int x, int y) {
-    float grad_x = Image::evaluate_kernel(gradient_x_kernel, image, x, y);
-    float grad_y = Image::evaluate_kernel(gradient_y_kernel, image, x, y);
+    auto grad_x = Image::evaluate_kernel<glm::vec3>(gradient_x_kernel, image, x, y);
+    auto grad_y = Image::evaluate_kernel<glm::vec3>(gradient_y_kernel, image, x, y);
 
-    float magnitude = std::sqrtf(grad_x * grad_x + grad_y * grad_y);
+    float grad_r = grad_x.r * grad_x.r + grad_y.r * grad_y.r;
+    float grad_g = grad_x.g * grad_x.g + grad_y.g * grad_y.g;
+    float grad_b = grad_x.b * grad_x.b + grad_y.b * grad_y.b;
+
+    glm::vec2 grad;
+    if (grad_r > grad_g && grad_r > grad_b) {
+      grad = glm::vec2(grad_x.r, grad_y.r);
+    } else if (grad_g > grad_b) {
+      grad = glm::vec2(grad_x.g, grad_y.g);
+    } else {
+      grad = glm::vec2(grad_x.b, grad_y.b);
+    }
+
+    float magnitude = glm::length(grad);
     max_magnitude = std::max(max_magnitude, magnitude);
-    float angle = std::atan2f(grad_y, grad_x);
-    if (angle < 0.0f) angle = pi - angle;
+    float angle = std::atan2f(grad.y, grad.x);
+    if (angle < 0.0f) angle += pi;
 
     result(x, y) = std::make_pair(magnitude, angle);
   });
@@ -182,6 +193,7 @@ GreyscaleImage apply_hysteresis(const GreyscaleImage& image, float high, float l
     return found_strong_pixel;
   };
 
+  std::vector<std::vector<glm::ivec2>> weak_pixels;
   GreyscaleImage result { width, height, 1 };
   Image::apply(width, height, [&] (int x, int y) {
     if (visited(x, y)) return;
@@ -198,32 +210,40 @@ GreyscaleImage apply_hysteresis(const GreyscaleImage& image, float high, float l
         for (auto p : points) {
           result(p.x, p.y) = 1.0f;
         }
+      } else {
+        weak_pixels.emplace_back(std::move(points));
       }
     }
   });
+
+  std::vector<int> indices(weak_pixels.size());
+  std::iota(indices.begin(), indices.end(), 0);
+  std::ranges::sort(indices, std::greater<>{}, [&] (const int i) {
+    return weak_pixels[i].size();
+  });
+
+  constexpr float take_percentile = 0.25;
+  for (auto i : std::views::take(indices, indices.size() * take_percentile)) {
+    for (auto p : weak_pixels[i]) {
+      result(p.x, p.y) = 1.0f;
+    }
+  }
 
   return result;
 }
 
 GreyscaleImage detect_edges(const ColorImage& source_image, float threshold) {
-  int width = source_image.width();
-  int height = source_image.height();
-  GreyscaleImage greyscale_image { width, height, source_image.padding() };
-  Image::apply(width, height, [&] (int x, int y) {
-    greyscale_image(x, y) = glm::dot(source_image(x, y), glm::vec3(0.2989f, 0.5870f, 0.1140f));
-  });
+  auto blurred_image = apply_adaptive_blur(source_image, 1.0f, 1);
+  auto gradient_image = compute_gradient(blurred_image);
+  auto thinned_image = thin_edges(gradient_image);
 
-  assert(source_image.padding() == gaussian_kernel.size() / 2);
-  GreyscaleImage blurred_image = apply_adaptive_blur(greyscale_image, 1.0f, 2);
-
-  GradientImage_t gradient_image = compute_gradient(blurred_image);
-
-  GreyscaleImage thinned_image = thin_edges(gradient_image);
+  for (int x = 0; x < thinned_image.width(); ++x) {
+    thinned_image(x, 0) = thinned_image(x, thinned_image.height() - 1) = 0.0f;
+  }
 
   float high_threshold = (threshold > 0.0f ? threshold : compute_threshold(thinned_image));
   float low_threshold = high_threshold / 2.0f;
-  GreyscaleImage final_image = apply_hysteresis(thinned_image, high_threshold, low_threshold);
-
+  auto final_image = apply_hysteresis(thinned_image, high_threshold, low_threshold);
   return final_image;
 }
 
