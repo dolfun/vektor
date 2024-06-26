@@ -33,8 +33,6 @@ public:
     return m_data;
   }
 
-  
-
 private:
   int m_width, m_height;
   int m_padding;
