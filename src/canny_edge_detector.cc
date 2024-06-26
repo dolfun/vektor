@@ -1,7 +1,9 @@
 #include "canny_edge_detector.h"
+#include <numeric>
 #include <numbers>
 #include <utility>
 #include <cassert>
+#include <ranges>
 #include <cmath>
 
 using Image::Image_t;
@@ -77,15 +79,55 @@ Image_t thin_edges(const GradientImage_t& image) {
   return result;
 }
 
+float compute_threshold(const Image_t& image, int nr_bins = 256) {
+  std::vector<int> bins(nr_bins);
+  Image::apply(image.width(), image.height(), [&] (int x, int y) {
+    int index = static_cast<int>(image(x, y) * (nr_bins - 1));
+    ++bins[index];
+  });
+
+  float w_t = static_cast<float>(image.width() * image.height());
+  auto indices = std::views::iota(0);
+  float mu_t = std::inner_product(
+    bins.begin(), bins.end(),
+    indices.begin(), 0.0f,
+    std::plus<>{}, std::multiplies<float>{}
+  );
+
+  float maximum = 0.0f;
+  int maximum_index;
+  float w_0 = 0.0f, mu_0 = 0.0f;
+  for (int i = 0; i < nr_bins; ++i) {
+    float w_1 = w_t - w_0;
+    if (w_0 > 0.0f && w_1 > 0.0f) {
+      float mu_1 = (mu_t - mu_0) / w_1;
+      float val = w_0 * w_1 * (mu_1 / w_1 - mu_0) * (mu_1 / w_1 - mu_0);
+      if (val > maximum) {
+        maximum = val;
+        maximum_index = i + 1;
+      }
+    }
+
+    float count = static_cast<float>(bins[i]);
+    w_0 += count;
+    mu_0 += i * count;
+  }
+
+  return static_cast<float>(maximum_index) / nr_bins;
+}
+
 Image_t detect_edges(const Image_t& source_image) {
   assert(source_image.padding() == gaussian_kernel.size() / 2);
   Image_t blurred_image = apply_gaussian_blur(source_image);
 
   GradientImage_t gradient_image = compute_gradient(blurred_image);
 
-  Image_t result = thin_edges(gradient_image);
+  Image_t thinned_image = thin_edges(gradient_image);
 
-  return result;
+  float high_threshold = compute_threshold(thinned_image);
+  float low_threshold = high_threshold / 2.0f;
+
+  return thinned_image;
 }
 
 } // namespace Canny

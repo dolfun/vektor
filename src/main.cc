@@ -1,4 +1,3 @@
-#include <print>
 #include "image.h"
 #include "canny_edge_detector.h"
 
