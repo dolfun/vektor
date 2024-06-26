@@ -11,15 +11,37 @@ constexpr auto pi = std::numbers::pi_v<float>;
 
 namespace Canny {
 
-Image_t apply_gaussian_blur(const Image_t& image) {
+Image_t apply_adaptive_blur(const Image_t& image, float h, int nr_iterations = 1) {
   int width = image.width();
   int height = image.height();
-  Image_t result { width, height, gradient_x_kernel.size() / 2 };
 
-  Image::apply(width, height, [&] (int x, int y) {
-    result(x, y) = Image::evaluate_kernel(gaussian_kernel, image, x, y);
-  });
+  Image_t result = image;
+  for (int iter = 0; iter < nr_iterations; ++iter) {
+    Image_t source = std::move(result);
+    result = Image_t { width, height, gradient_x_kernel.size() / 2 };
 
+    Image_t weights { width, height, 1 };
+    int inset = 3;
+    Image::apply_with_inset(width, height, inset, inset, [&] (int x, int y) {
+      float grad_x = Image::evaluate_kernel(gradient_x_kernel, source, x, y);
+      float grad_y = Image::evaluate_kernel(gradient_y_kernel, source, x, y);
+      weights(x, y) = std::expf(-std::powf(grad_x * grad_x + grad_y * grad_y, 0.25f) / (2.0f * h * h));
+    });
+
+    Image::apply_with_inset(width, height, inset, inset, [&] (int x, int y) {
+      float weight_sum = 0.0f;
+      for (int j = -1; j <= 1; ++j) {
+        for (int i = -1; i <= 1; ++i) {
+          float weight = weights(x + i, y + j);
+          result(x, y) += source(x + i, y + j) * weight;
+          weight_sum += weight;
+        }
+      }
+
+      result(x, y) /= weight_sum;
+    });
+  }
+  
   return result;
 }
 
@@ -104,7 +126,7 @@ float compute_threshold(const Image_t& image, int nr_bins = 256) {
       float val = w_0 * w_1 * (mu_1 / w_1 - mu_0) * (mu_1 / w_1 - mu_0);
       if (val > maximum) {
         maximum = val;
-        maximum_index = i + 1;
+        maximum_index = i;
       }
     }
 
@@ -118,7 +140,7 @@ float compute_threshold(const Image_t& image, int nr_bins = 256) {
 
 Image_t detect_edges(const Image_t& source_image) {
   assert(source_image.padding() == gaussian_kernel.size() / 2);
-  Image_t blurred_image = apply_gaussian_blur(source_image);
+  Image_t blurred_image = apply_adaptive_blur(source_image, 1.5f, 8);
 
   GradientImage_t gradient_image = compute_gradient(blurred_image);
 
@@ -126,6 +148,17 @@ Image_t detect_edges(const Image_t& source_image) {
 
   float high_threshold = compute_threshold(thinned_image);
   float low_threshold = high_threshold / 2.0f;
+
+  Image::apply(thinned_image.width(), thinned_image.height(), [&] (int x, int y) {
+    float val = thinned_image(x, y);
+    if (val >= high_threshold) {
+      thinned_image(x, y) = 1.0f;
+    } else if (val >= low_threshold) {
+      thinned_image(x, y) = 0.5f;
+    } else {
+      thinned_image(x, y) = 0.0f;
+    }
+  });
 
   return thinned_image;
 }
