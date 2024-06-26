@@ -6,24 +6,24 @@
 
 namespace Image {
 
-Image_t load(const char* path, int padding) {
+ColorImage load(const char* path, int padding) {
   int width, height, nr_channels;
   unsigned char* data = stbi_load(path, &width, &height, &nr_channels, 0);
 
-  Image_t image { width, height, padding };
+  ColorImage image { width, height, padding };
   apply(width, height, [&] (int x, int y) {
     int index = y * width + x;
-    float r = static_cast<float>(data[index * nr_channels + 0]) / 255.0f;
-    float g = static_cast<float>(data[index * nr_channels + 1]) / 255.0f;
-    float b = static_cast<float>(data[index * nr_channels + 2]) / 255.0f;
-    image(x, y) = r * 0.2989f + g * 0.5870f + b * 0.1140f;
+    float r = static_cast<float>(data[index * nr_channels + 0]);
+    float g = static_cast<float>(data[index * nr_channels + 1]);
+    float b = static_cast<float>(data[index * nr_channels + 2]);
+    image(x, y) = glm::vec3(r, g, b) / 255.0f;
   });
 
   stbi_image_free(data);
   return image;
 }
 
-void save_as_png(const Image_t& image, const char* path) {
+void save_as_png(const GreyscaleImage& image, const char* path) {
   const int width = image.width();
   const int height = image.height();
   constexpr int nr_channels = 3;

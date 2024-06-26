@@ -42,6 +42,6 @@ constexpr Image::Kernel<5> gradient_y_kernel {
 static_assert(gradient_x_kernel.size() == gradient_y_kernel.size());
 
 constexpr int padding_requirement = gaussian_kernel.size() / 2;
-Image::Image_t detect_edges(const Image::Image_t&, float threshold = -1.0f);
+Image::GreyscaleImage detect_edges(const Image::ColorImage&, float threshold = -1.0f);
 
 } // namespace Canny

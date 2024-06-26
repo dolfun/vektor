@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <glm/vec3.hpp>
 
 namespace Image {
 
@@ -40,7 +41,8 @@ private:
   std::vector<T> m_data;
 };
 
-using Image_t = Image<float>;
+using ColorImage = Image<glm::vec3>;
+using GreyscaleImage = Image<float>;
 
 inline void apply_with_inset(int width, int height, int inset_x, int inset_y, auto&& f) noexcept {
   for (int y = inset_y; y < height - inset_y; ++y) {
@@ -54,7 +56,7 @@ inline void apply(int width, int height, auto&& f) noexcept {
   apply_with_inset(width, height, 0, 0, std::forward<decltype(f)>(f));
 }
 
-Image_t load(const char*, int padding = 0);
-void save_as_png(const Image_t&, const char*);
+ColorImage load(const char*, int padding = 0);
+void save_as_png(const GreyscaleImage&, const char*);
 
 } // namespace Image

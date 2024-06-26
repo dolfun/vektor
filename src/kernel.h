@@ -7,7 +7,7 @@ template <int N>
 struct Kernel {
   static_assert(N % 2 == 1);
   
-  constexpr float operator()(int x, int y) const noexcept {
+  constexpr int operator()(int x, int y) const noexcept {
     return data[N * y + x];
   }
 
@@ -19,9 +19,9 @@ struct Kernel {
   int normalizing_factor = 1;
 };
 
-template <int N>
-inline float evaluate_kernel(const Kernel<N>& kernel, const auto& f, int x, int y) noexcept {
-  float result = 0.0f;
+template <typename T = float, int N>
+inline T evaluate_kernel(const Kernel<N>& kernel, const auto& f, int x, int y) noexcept {
+  T result{};
 
   for (int y0 = -N / 2; y0 <= N / 2; ++y0) {
     for (int x0 = -N / 2; x0 <= N / 2; ++x0) {

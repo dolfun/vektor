@@ -1,4 +1,5 @@
 #include "canny_edge_detector.h"
+#include <glm/glm.hpp>
 #include <numeric>
 #include <numbers>
 #include <utility>
@@ -7,21 +8,22 @@
 #include <cmath>
 #include <stack>
 
-using Image::Image_t;
+using Image::ColorImage;
+using Image::GreyscaleImage;
 constexpr auto pi = std::numbers::pi_v<float>;
 
 namespace Canny {
 
-Image_t apply_adaptive_blur(const Image_t& image, float h, int nr_iterations = 1) {
+GreyscaleImage apply_adaptive_blur(const GreyscaleImage& image, float h, int nr_iterations = 1) {
   int width = image.width();
   int height = image.height();
 
-  Image_t result = image;
+  GreyscaleImage result = image;
   for (int iter = 0; iter < nr_iterations; ++iter) {
-    Image_t source = std::move(result);
-    result = Image_t { width, height, gradient_x_kernel.size() / 2 };
+    GreyscaleImage source = std::move(result);
+    result = GreyscaleImage { width, height, gradient_x_kernel.size() / 2 };
 
-    Image_t weights { width, height, 1 };
+    GreyscaleImage weights { width, height, 1 };
     int inset = 3;
     Image::apply_with_inset(width, height, inset, inset, [&] (int x, int y) {
       float grad_x = Image::evaluate_kernel(gradient_x_kernel, source, x, y);
@@ -47,7 +49,7 @@ Image_t apply_adaptive_blur(const Image_t& image, float h, int nr_iterations = 1
 }
 
 using GradientImage_t = Image::Image<std::pair<float, float>>;
-GradientImage_t compute_gradient(const Image_t& image) {
+GradientImage_t compute_gradient(const GreyscaleImage& image) {
   int width = image.width();
   int height = image.height();
   GradientImage_t result { width, height, 1 };
@@ -73,23 +75,23 @@ GradientImage_t compute_gradient(const Image_t& image) {
   return result;
 }
 
-Image_t thin_edges(const GradientImage_t& image) {
+GreyscaleImage thin_edges(const GradientImage_t& image) {
   int width = image.width();
   int height = image.height();
-  Image_t result { width, height, 1 };
+  GreyscaleImage result { width, height, 1 };
 
   Image::apply(width, height, [&] (int x, int y) {
     float angle = image(x, y).second * 180.0f / pi;
 
-    std::array<int, 2> dir{};
+    glm::ivec2 dir;
     if (angle <= 22.5f || angle >= 157.5f) dir = { 1, 0 };
     else if (angle < 67.5f) dir = { 1, 1 };
     else if (angle < 122.5f) dir = { 0, 1 };
     else dir = { -1, 1 };
 
     float g0 = image(x, y).first;
-    float g1 = image(x + dir[0], y + dir[1]).first;
-    float g2 = image(x - dir[0], y - dir[1]).first;
+    float g1 = image(x + dir.x, y + dir.y).first;
+    float g2 = image(x - dir.x, y - dir.y).first;
 
     if (g0 > g1 && g0 > g2) {
       result(x, y) = g0;
@@ -99,7 +101,7 @@ Image_t thin_edges(const GradientImage_t& image) {
   return result;
 }
 
-float compute_threshold(const Image_t& image, int nr_bins = 256) {
+float compute_threshold(const GreyscaleImage& image, int nr_bins = 256) {
   std::vector<int> bins(nr_bins);
   Image::apply(image.width(), image.height(), [&] (int x, int y) {
     int index = static_cast<int>(image(x, y) * (nr_bins - 1));
@@ -136,52 +138,51 @@ float compute_threshold(const Image_t& image, int nr_bins = 256) {
   return static_cast<float>(maximum_index) / nr_bins;
 }
 
-Image_t apply_hysteresis(const Image_t& image, float high, float low) {  
-  using Point = std::array<int, 2>;
-  static constexpr std::array<Point, 8> dirs = {
-    -1, -1,
-     0, -1,
-     1, -1,
-    -1,  0,
-     1,  0,
-    -1,  1,
-     0,  1,
-     1,  1,
+GreyscaleImage apply_hysteresis(const GreyscaleImage& image, float high, float low) {  
+  static constexpr std::array<glm::ivec2, 8> dirs = {
+    glm::ivec2 { -1, -1, },
+    glm::ivec2 {  0, -1, },
+    glm::ivec2 {  1, -1, },
+    glm::ivec2 { -1,  0, },
+    glm::ivec2 {  1,  0, },
+    glm::ivec2 { -1,  1, },
+    glm::ivec2 {  0,  1, },
+    glm::ivec2 {  1,  1, },
   };
 
   int width = image.width();
   int height = image.height();
   Image::Image<unsigned char> visited { width, height, 1 };
-  auto dfs = [&] (int x0, int y0, std::vector<Point>& points) {
-    std::stack<Point> s;
+  auto dfs = [&] (int x0, int y0, std::vector<glm::ivec2>& points) {
+    std::stack<glm::ivec2> s;
     s.push({ x0, y0 });
 
     bool found_strong_pixel = false;
     
     while (!s.empty()) {
-      auto [x, y] = s.top();
+      auto p = s.top();
       s.pop();
 
-      points.push_back({ x, y });
-      visited(x, y) = true;
+      points.push_back(p);
+      visited(p.x, p.y) = true;
 
-      for (auto [i, j] : dirs) {
-        int x1 = x + i, y1 = y + j;
-        float val = image(x1, y1);
+      for (auto dir : dirs) {
+        glm::ivec2 p1 = p + dir;
+        float val = image(p1.x, p1.y);
 
         if (!found_strong_pixel && val >= high) {
           found_strong_pixel = true;
         }
 
-        if (visited(x1, y1) || val < low || val >= high) continue;
-        s.push({ x1, y1 });
+        if (visited(p1.x, p1.y) || val < low || val >= high) continue;
+        s.push({ p1.x, p1.y });
       }
     }
 
     return found_strong_pixel;
   };
 
-  Image_t result { width, height, 1 };
+  GreyscaleImage result { width, height, 1 };
   Image::apply(width, height, [&] (int x, int y) {
     if (visited(x, y)) return;
     float val = image(x, y);
@@ -190,12 +191,12 @@ Image_t apply_hysteresis(const Image_t& image, float high, float low) {
       result(x, y) = 1.0f;
 
     } else if (val >= low) {
-      std::vector<Point> points;
+      std::vector<glm::ivec2> points;
       bool strong_pixel_found = dfs(x, y, points);
 
       if (strong_pixel_found || points.size() >= 20) {
-        for (auto [x, y] : points) {
-          result(x, y) = 1.0f;
+        for (auto p : points) {
+          result(p.x, p.y) = 1.0f;
         }
       }
     }
@@ -204,17 +205,24 @@ Image_t apply_hysteresis(const Image_t& image, float high, float low) {
   return result;
 }
 
-Image_t detect_edges(const Image_t& source_image, float threshold) {
+GreyscaleImage detect_edges(const ColorImage& source_image, float threshold) {
+  int width = source_image.width();
+  int height = source_image.height();
+  GreyscaleImage greyscale_image { width, height, source_image.padding() };
+  Image::apply(width, height, [&] (int x, int y) {
+    greyscale_image(x, y) = glm::dot(source_image(x, y), glm::vec3(0.2989f, 0.5870f, 0.1140f));
+  });
+
   assert(source_image.padding() == gaussian_kernel.size() / 2);
-  Image_t blurred_image = apply_adaptive_blur(source_image, 1.0f, 2);
+  GreyscaleImage blurred_image = apply_adaptive_blur(greyscale_image, 1.0f, 2);
 
   GradientImage_t gradient_image = compute_gradient(blurred_image);
 
-  Image_t thinned_image = thin_edges(gradient_image);
+  GreyscaleImage thinned_image = thin_edges(gradient_image);
 
   float high_threshold = (threshold > 0.0f ? threshold : compute_threshold(thinned_image));
   float low_threshold = high_threshold / 2.0f;
-  Image_t final_image = apply_hysteresis(thinned_image, high_threshold, low_threshold);
+  GreyscaleImage final_image = apply_hysteresis(thinned_image, high_threshold, low_threshold);
 
   return final_image;
 }
