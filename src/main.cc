@@ -1,7 +1,9 @@
 #include <print>
+#include "image.h"
 
 int main() {
-  std::println("Hello World");
+  Image::Image image = Image::load("building.png");
+  Image::save_as_png(image, "output.png");
 
   return 0;
 }
