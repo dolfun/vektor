@@ -5,6 +5,7 @@
 #include <cassert>
 #include <ranges>
 #include <cmath>
+#include <stack>
 
 using Image::Image_t;
 constexpr auto pi = std::numbers::pi_v<float>;
@@ -75,19 +76,16 @@ GradientImage_t compute_gradient(const Image_t& image) {
 Image_t thin_edges(const GradientImage_t& image) {
   int width = image.width();
   int height = image.height();
-  Image_t result { width, height };
-
-  constexpr std::array<std::array<int, 2>, 4> dirs {
-     1, 0, 
-     1, 1,
-     0, 1,
-    -1, 1,
-  };
+  Image_t result { width, height, 1 };
 
   Image::apply(width, height, [&] (int x, int y) {
-    float angle = image(x, y).second;
-    int dir_index = static_cast<int>((angle + pi / 8.0f) / (pi / 4.0f));
-    auto dir = dirs[dir_index % dirs.size()];
+    float angle = image(x, y).second * 180.0f / pi;
+
+    std::array<int, 2> dir{};
+    if (angle <= 22.5f || angle >= 157.5f) dir = { 1, 0 };
+    else if (angle < 67.5f) dir = { 1, 1 };
+    else if (angle < 122.5f) dir = { 0, 1 };
+    else dir = { -1, 1 };
 
     float g0 = image(x, y).first;
     float g1 = image(x + dir[0], y + dir[1]).first;
@@ -138,29 +136,87 @@ float compute_threshold(const Image_t& image, int nr_bins = 256) {
   return static_cast<float>(maximum_index) / nr_bins;
 }
 
-Image_t detect_edges(const Image_t& source_image) {
+Image_t apply_hysteresis(const Image_t& image, float high, float low) {  
+  using Point = std::array<int, 2>;
+  static constexpr std::array<Point, 8> dirs = {
+    -1, -1,
+     0, -1,
+     1, -1,
+    -1,  0,
+     1,  0,
+    -1,  1,
+     0,  1,
+     1,  1,
+  };
+
+  int width = image.width();
+  int height = image.height();
+  Image::Image<unsigned char> visited { width, height, 1 };
+  auto dfs = [&] (int x0, int y0, std::vector<Point>& points) {
+    std::stack<Point> s;
+    s.push({ x0, y0 });
+
+    bool found_strong_pixel = false;
+    
+    while (!s.empty()) {
+      auto [x, y] = s.top();
+      s.pop();
+
+      points.push_back({ x, y });
+      visited(x, y) = true;
+
+      for (auto [i, j] : dirs) {
+        int x1 = x + i, y1 = y + j;
+        float val = image(x1, y1);
+
+        if (!found_strong_pixel && val >= high) {
+          found_strong_pixel = true;
+        }
+
+        if (visited(x1, y1) || val < low || val >= high) continue;
+        s.push({ x1, y1 });
+      }
+    }
+
+    return found_strong_pixel;
+  };
+
+  Image_t result { width, height, 1 };
+  Image::apply(width, height, [&] (int x, int y) {
+    if (visited(x, y)) return;
+    float val = image(x, y);
+    
+    if (val >= high) {
+      result(x, y) = 1.0f;
+
+    } else if (val >= low) {
+      std::vector<Point> points;
+      bool strong_pixel_found = dfs(x, y, points);
+
+      if (strong_pixel_found || points.size() >= 20) {
+        for (auto [x, y] : points) {
+          result(x, y) = 1.0f;
+        }
+      }
+    }
+  });
+
+  return result;
+}
+
+Image_t detect_edges(const Image_t& source_image, float threshold) {
   assert(source_image.padding() == gaussian_kernel.size() / 2);
-  Image_t blurred_image = apply_adaptive_blur(source_image, 1.5f, 8);
+  Image_t blurred_image = apply_adaptive_blur(source_image, 1.0f, 2);
 
   GradientImage_t gradient_image = compute_gradient(blurred_image);
 
   Image_t thinned_image = thin_edges(gradient_image);
 
-  float high_threshold = compute_threshold(thinned_image);
+  float high_threshold = (threshold > 0.0f ? threshold : compute_threshold(thinned_image));
   float low_threshold = high_threshold / 2.0f;
+  Image_t final_image = apply_hysteresis(thinned_image, high_threshold, low_threshold);
 
-  Image::apply(thinned_image.width(), thinned_image.height(), [&] (int x, int y) {
-    float val = thinned_image(x, y);
-    if (val >= high_threshold) {
-      thinned_image(x, y) = 1.0f;
-    } else if (val >= low_threshold) {
-      thinned_image(x, y) = 0.5f;
-    } else {
-      thinned_image(x, y) = 0.0f;
-    }
-  });
-
-  return thinned_image;
+  return final_image;
 }
 
 } // namespace Canny
