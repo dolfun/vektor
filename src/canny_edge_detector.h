@@ -12,23 +12,33 @@ constexpr Image::Kernel<5> gaussian_kernel {
     4,  9, 12,  9, 4,
     2,  4,  5,  4, 2,
   },
-  159.0f
+  159
 };
 
-constexpr Image::Kernel<3> sobel_kernel_x {
-  +1, 0, -1,
-  +2, 0, -2,
-  +1, 0, -1,
+// Sobel 5x5
+// https://www.hlevkin.com/hlevkin/47articles/SobelScharrGradients5x5.pdf
+constexpr Image::Kernel<5> gradient_x_kernel {
+  {
+     -5,  -4, 0,  4,  5,
+     -8, -10, 0, 10,  8,
+    -10, -20, 0, 20, 10,
+     -8, -10, 0, 10,  8,
+     -5,  -4, 0,  4,  5,
+  },
+  240
 };
 
-constexpr Image::Kernel<3> sobel_kernel_y {
-  +1, +2, +1,
-   0,  0,  0,
-  -1, -2, -1,
+constexpr Image::Kernel<5> gradient_y_kernel {
+  {
+    -5,  -8, -10,  -8, -5,
+    -4, -10, -20, -10, -4,
+     0,   0,   0,   0,  0,
+    +4, +10, +20, +10, +4,
+    +5,  +8, +10,  +8, +5
+  },
+  240
 };
 
-constexpr Image::Kernel<3> gradient_x_kernel = sobel_kernel_x;
-constexpr Image::Kernel<3> gradient_y_kernel = sobel_kernel_y;
 static_assert(gradient_x_kernel.size() == gradient_y_kernel.size());
 
 constexpr int padding_requirement = gaussian_kernel.size() / 2;

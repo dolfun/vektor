@@ -16,7 +16,7 @@ struct Kernel {
   }
 
   std::array<int, N * N> data;
-  float normalizing_factor = 1.0f;
+  int normalizing_factor = 1;
 };
 
 template <int N>
@@ -28,7 +28,7 @@ inline float evaluate_kernel(const Kernel<N>& kernel, const auto& f, int x, int 
       result += kernel(x0 + N / 2, y0 + N / 2) * f(x - x0, y - y0);
     }
   }
-  result /= kernel.normalizing_factor;
+  result /= static_cast<float>(kernel.normalizing_factor);
 
   return result;
 }
