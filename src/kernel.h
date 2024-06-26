@@ -1,5 +1,4 @@
 #pragma once
-#include "image.h"
 #include <array>
 
 namespace Image {
@@ -8,8 +7,8 @@ template <int N>
 struct Kernel {
   static_assert(N % 2 == 1);
   
-  constexpr float operator()(int i, int j) const noexcept {
-    return data[N * i + j];
+  constexpr float operator()(int x, int y) const noexcept {
+    return data[N * y + x];
   }
 
   constexpr int size() const noexcept {
@@ -21,12 +20,12 @@ struct Kernel {
 };
 
 template <int N>
-inline float evaluate_kernel(const Kernel<N>& kernel, const Image& image, int i, int j) noexcept {
+inline float evaluate_kernel(const Kernel<N>& kernel, const auto& f, int x, int y) noexcept {
   float result = 0.0f;
 
-  for (int i0 = -N / 2; i0 <= N / 2; ++i0) {
-    for (int j0 = -N / 2; j0 <= N / 2; ++j0) {
-      result += kernel(i0 + N / 2, j0 + N / 2) * image(i + i0, j + j0);
+  for (int y0 = -N / 2; y0 <= N / 2; ++y0) {
+    for (int x0 = -N / 2; x0 <= N / 2; ++x0) {
+      result += kernel(x0 + N / 2, y0 + N / 2) * f(x - x0, y - y0);
     }
   }
   result /= kernel.normalizing_factor;
