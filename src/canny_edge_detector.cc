@@ -12,8 +12,6 @@ using Image::ColorImage;
 using Image::GreyscaleImage;
 constexpr auto pi = std::numbers::pi_v<float>;
 
-namespace Canny {
-
 ColorImage apply_adaptive_blur(const ColorImage& image, float h, int nr_iterations = 1) {
   int width = image.width();
   int height = image.height();
@@ -21,12 +19,12 @@ ColorImage apply_adaptive_blur(const ColorImage& image, float h, int nr_iteratio
   ColorImage result = image;
   for (int iter = 0; iter < nr_iterations; ++iter) {
     ColorImage source = std::move(result);
-    result = ColorImage { width, height, gradient_x_kernel.size() / 2 };
+    result = ColorImage { width, height, Canny::gradient_x_kernel.size() / 2 };
 
     ColorImage weights { width, height, 1 };
     Image::apply(width, height, [&] (int x, int y) {
-      auto grad_x = Image::evaluate_kernel<glm::vec3>(gradient_x_kernel, source, x, y);
-      auto grad_y = Image::evaluate_kernel<glm::vec3>(gradient_y_kernel, source, x, y);
+      auto grad_x = Image::evaluate_kernel<glm::vec3>(Canny::gradient_x_kernel, source, x, y);
+      auto grad_y = Image::evaluate_kernel<glm::vec3>(Canny::gradient_y_kernel, source, x, y);
       weights(x, y) = glm::exp(-glm::sqrt(glm::sqrt(grad_x * grad_x + grad_y * grad_y)) / (2.0f * h * h));
     });
 
@@ -55,8 +53,8 @@ GradientImage_t compute_gradient(const ColorImage& image) {
   float max_magnitude = 0.0f;
   int inset = 0;
   Image::apply_with_inset(width, height, inset, inset, [&] (int x, int y) {
-    auto grad_x = Image::evaluate_kernel<glm::vec3>(gradient_x_kernel, image, x, y);
-    auto grad_y = Image::evaluate_kernel<glm::vec3>(gradient_y_kernel, image, x, y);
+    auto grad_x = Image::evaluate_kernel<glm::vec3>(Canny::gradient_x_kernel, image, x, y);
+    auto grad_y = Image::evaluate_kernel<glm::vec3>(Canny::gradient_y_kernel, image, x, y);
 
     float grad_r = grad_x.r * grad_x.r + grad_y.r * grad_y.r;
     float grad_g = grad_x.g * grad_x.g + grad_y.g * grad_y.g;
@@ -231,6 +229,8 @@ GreyscaleImage apply_hysteresis(const GreyscaleImage& image, float high, float l
 
   return result;
 }
+
+namespace Canny {
 
 GreyscaleImage detect_edges(const ColorImage& source_image, float threshold) {
   auto blurred_image = apply_adaptive_blur(source_image, 1.0f, 1);
