@@ -165,7 +165,7 @@ private:
 };
 
 auto compute_pivot(const Path& path) -> std::vector<int> {
-  int n = path.size();
+  int n = static_cast<int>(path.size());
   std::vector<int> next_corner(n);  
   for (int i = n - 1, k = n - 1; i >= 0; --i) {
     if (path[i].x != path[k].x && path[i].y != path[k].y) {
@@ -262,7 +262,7 @@ struct PrefixSum {
 
 using PrefixSums_t = std::vector<PrefixSum>;
 auto compute_prefix_sums(const Path& path) -> PrefixSums_t {
-  int n = path.size() + 1;
+  int n = static_cast<int>(path.size() + 1);
   PrefixSums_t prefix_sums(n);
 
   for (int i = 0; i < n - 1; ++i) {
@@ -303,7 +303,7 @@ auto compute_optimal_sequence(const Path& path) -> std::vector<int> {
   auto pivot = compute_pivot(path);
   auto prefix_sums = compute_prefix_sums(path);
 
-  int n = path.size();
+  int n = static_cast<int>(path.size());
   std::vector<int> clip0(n);
   clip0[0] = pivot[0] - 1;
   clip0[n - 1] = n - 1;
@@ -394,7 +394,7 @@ void path_to_bezier_curves(std::vector<BezierCurve>& curves, const std::vector<g
     return u1.x * u2.y - u2.x * u1.y;
   };
 
-  int n = path.size();
+  int n = static_cast<int>(path.size());
 
   if (n < 2) return;
   if (n == 2) {

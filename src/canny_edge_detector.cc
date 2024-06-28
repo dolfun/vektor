@@ -219,7 +219,7 @@ GreyscaleImage apply_hysteresis(const GreyscaleImage& image, float high, float l
   });
 
   constexpr float take_percentile = 0.25;
-  const int take_amount = weak_pixels.size() * take_percentile;
+  const int take_amount = static_cast<int>(weak_pixels.size() * take_percentile);
   for (const auto& v : std::views::take(weak_pixels, take_amount)) {
     for (auto p : v) {
       result(p.x, p.y) = 1.0f;

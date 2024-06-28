@@ -1,4 +1,4 @@
-#include <print>
+#include <iostream>
 #include "tracer.h"
 #include "renderer.h"
 #include "canny_edge_detector.h"
@@ -13,7 +13,7 @@ int main() {
     Image::save_as_png(result, "output.png");
     
   } catch (const std::exception& e) {
-    std::println("Exception occured: {}", e.what());
+    std::cerr << "Exception occured: {}" << e.what() << std::endl;
   }
 
   return 0;

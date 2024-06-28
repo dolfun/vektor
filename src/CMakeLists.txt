@@ -16,7 +16,6 @@ add_library(renderer renderer.h renderer.cc bezier_curve.h)
 target_compile_features(renderer PRIVATE cxx_std_23)
 target_link_libraries(renderer PUBLIC image glm::glm)
 
-
 add_executable(main main.cc)
 target_compile_features(main PRIVATE cxx_std_23)
 target_link_libraries(main PRIVATE canny_edge_detector tracer renderer)
