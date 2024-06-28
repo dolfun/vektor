@@ -3,6 +3,6 @@
 
 namespace Tracer {
 
-Image::GreyscaleImage trace(const Image::GreyscaleImage&);
+Image::ColorImage trace(const Image::GreyscaleImage&);
 
 } // namespace Tracer

@@ -1,4 +1,5 @@
 #include "image.h"
+#include <stdexcept>
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image.h>
@@ -9,6 +10,10 @@ namespace Image {
 ColorImage load(const char* path, int padding) {
   int width, height, nr_channels;
   unsigned char* data = stbi_load(path, &width, &height, &nr_channels, 0);
+
+  if (data == nullptr) {
+    throw std::runtime_error("File not found: " + std::string(path));
+  }
 
   ColorImage image { width, height, padding };
   apply(width, height, [&] (int x, int y) {

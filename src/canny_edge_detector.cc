@@ -192,7 +192,7 @@ GreyscaleImage apply_hysteresis(const GreyscaleImage& image, float high, float l
   };
 
   std::vector<std::vector<glm::ivec2>> weak_pixels;
-  GreyscaleImage result { width, height, 1 };
+  GreyscaleImage result { width, height, 2 };
   Image::apply(width, height, [&] (int x, int y) {
     if (visited(x, y)) return;
     float val = image(x, y);
@@ -204,7 +204,7 @@ GreyscaleImage apply_hysteresis(const GreyscaleImage& image, float high, float l
       std::vector<glm::ivec2> points;
       bool strong_pixel_found = dfs(x, y, points);
 
-      if (strong_pixel_found || points.size() >= 20) {
+      if (strong_pixel_found) {
         for (auto p : points) {
           result(p.x, p.y) = 1.0f;
         }
@@ -214,15 +214,14 @@ GreyscaleImage apply_hysteresis(const GreyscaleImage& image, float high, float l
     }
   });
 
-  std::vector<int> indices(weak_pixels.size());
-  std::iota(indices.begin(), indices.end(), 0);
-  std::ranges::sort(indices, std::greater<>{}, [&] (const int i) {
-    return weak_pixels[i].size();
+  std::ranges::sort(weak_pixels, std::greater<>{}, [&] (const auto& v) {
+    return v.size();
   });
 
   constexpr float take_percentile = 0.25;
-  for (auto i : std::views::take(indices, indices.size() * take_percentile)) {
-    for (auto p : weak_pixels[i]) {
+  const int take_amount = weak_pixels.size() * take_percentile;
+  for (const auto& v : std::views::take(weak_pixels, take_amount)) {
+    for (auto p : v) {
       result(p.x, p.y) = 1.0f;
     }
   }
