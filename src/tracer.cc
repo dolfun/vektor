@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 
 namespace rng = std::ranges;
+using Tracer::BezierCurve;
 using Image::GreyscaleImage;
 using Image::ColorImage;
 
@@ -374,6 +375,68 @@ auto compute_optimal_sequence(const Path& path) -> std::vector<int> {
   return result;
 }
 
+void path_to_bezier_curves(std::vector<Tracer::BezierCurve>& curves,const Path& path) {
+  auto straight_line_to_bezier = [] (glm::vec2 p1, glm::vec2 p2) {
+    auto m = (p1 + p2) / 2.0f;
+    BezierCurve curve {
+      .p0 = p1, .p1 = m, .p2 = m, .p3 = p2
+    };
+    return curve;
+  };
+
+  auto denom = [] (glm::vec2 p0, glm::vec2 p2) {
+    glm::vec2 r;
+    r.y = glm::sign(p2.x - p0.x);
+    r.x = -glm::sign(p2.y - p0.y);
+    return r.y * (p2.x - p0.x) - r.x * (p2.y - p0.y);
+  };
+
+  auto area_parallelogram = [] (glm::vec2 p0, glm::vec2 p1, glm::vec2 p2) {
+    auto u1 = p1 - p0, u2 = p2 - p0;
+    return u1.x * u2.y - u2.x * u1.y;
+  };
+
+  int n = path.size();
+
+  if (n < 2) return;
+  if (n == 2) {
+    curves.push_back(straight_line_to_bezier(path[0], path[1]));
+    return;
+  }
+
+  for (int i = 0; i <= n - 3; ++i) {
+    int j = i + 1;
+    int k = i + 2;
+    auto p0 = glm::vec2(path[i] + path[j]) / 2.0f;
+    auto p3 = glm::vec2(path[k] + path[j]) / 2.0f;
+
+    if (i == 0) p0 = path[0];
+    if (i == n - 3) p3 = path[n - 1];
+
+    float den = denom(path[i], path[k]);
+    float alpha = 4.0f / 3.0f;
+    if (den != 0.0f) {
+      float dd = glm::abs(area_parallelogram(path[i], path[j], path[k]) / den);
+      alpha = dd > 1.0f ? (1.0f - 1.0f / dd) : 0.0f;
+      alpha /= 0.75f;
+    }
+
+    if (alpha >= 1.0f) {
+      curves.emplace_back(straight_line_to_bezier(p0, path[j]));
+      curves.emplace_back(straight_line_to_bezier(path[j], p3));
+
+    } else {
+      float a0 = 0.552285f;
+      alpha = glm::clamp(alpha, a0, 1.0f);
+      float t = 0.5f + alpha * 0.5f;
+      glm::vec2 p1 = glm::vec2(path[i]) + t * glm::vec2(path[j] - path[i]);
+      glm::vec2 p2 = glm::vec2(path[k]) + t * glm::vec2(path[j] - path[k]);
+      curves.emplace_back(p0, p1, p2, p3);
+    }
+
+  }
+}
+
 void draw_line(glm::vec2 p1, glm::vec2 p2, auto&& f) {
   auto i_part = [] (float x) {
     return glm::floor(x);
@@ -448,6 +511,33 @@ void draw_line(glm::vec2 p1, glm::vec2 p2, auto&& f) {
   }
 }
 
+void draw_curve(const BezierCurve& curve, auto&& f) {
+  auto [p0, p1, p2, p3] = curve;
+
+  auto square = [] (auto x) { return x * x; };
+  auto cube   = [] (auto x) { return x * x * x; };
+
+  float delta = 0.1f;
+  float dd0 = square(p0.x - 2.0f * p1.x + p2.x) + square(p0.y - 2.0f * p1.y + p2.y);
+  float dd1 = square(p1.x - 2.0f * p2.x + p3.x) + square(p1.y - 2.0f * p2.y + p3.y);
+  float dd = 6.0f * glm::sqrt(glm::max(dd0, dd1));
+  float e2 = 8.0f * delta <= dd ? 8.0f * delta / dd : 1.0f;
+  float epsilon = glm::sqrt(e2);
+
+  glm::vec2 prev = p0;
+  for (float t = epsilon; t < 1.0f; t += epsilon) {
+    glm::vec2 curr = 
+      p0 * cube(1.0f - t) +
+      p1 * 3.0f * square(1.0f - t) * t +
+      p2 * 3.0f * (1.0f - t) * square(t) +
+      p3 * cube(t);
+    
+    draw_line(prev, curr, std::forward<decltype(f)>(f));
+    prev = curr;
+  }
+  draw_line(prev, p3, std::forward<decltype(f)>(f));
+}
+
 namespace Tracer {
 
 ColorImage trace(const GreyscaleImage& image) {
@@ -460,19 +550,32 @@ ColorImage trace(const GreyscaleImage& image) {
   int height = image.height();
   ColorImage result { width, height };
 
+  std::vector<BezierCurve> curves;
   for (const auto& path : paths) {
     auto sequence = compute_optimal_sequence(path);
 
-    int n = sequence.size();
-    for (int i = 1; i < n; ++i) {
-      glm::vec2 p1 = path[sequence[i - 1]];
-      glm::vec2 p2 = path[sequence[i]];
-
-      draw_line(p1, p2, [&] (float x, float y, float c) {
-        result(x, y) = glm::vec3(c);
-      });
+    Path optimal_path;
+    optimal_path.reserve(sequence.size());
+    for (auto i : sequence) {
+      optimal_path.push_back(path[i]);
     }
+
+    path_to_bezier_curves(curves, optimal_path);
   }
+
+  for (const auto& curve : curves) {
+    draw_curve(curve, [&] (float x, float y, float c) {
+      auto color = glm::mix(result(x, y), glm::vec3(1.0f), c);
+      result(x, y) = color;
+    });
+  }
+
+  BezierCurve curve = {
+    .p0 = { 50.0f, 50.0f },
+    .p1 = { 75.0f, 60.0f },
+    .p2 = { 30.0f, 75.0f },
+    .p3 = { 100.0f, 100.0f },
+  };
 
   return result;
 }
