@@ -1,5 +1,6 @@
 #include <print>
 #include "tracer.h"
+#include "renderer.h"
 #include "canny_edge_detector.h"
 
 int main() {
@@ -7,8 +8,9 @@ int main() {
   try {
     auto image = Image::load("NobitaNobi.png", Canny::padding_requirement);
     auto canny_result = Canny::detect_edges(image);
-    auto tracer_result = Tracer::trace(canny_result);
-    Image::save_as_png(tracer_result, "output.png");
+    auto curves = Tracer::trace(canny_result);
+    auto result = Renderer::render_color(image.width(), image.height(), curves, image);
+    Image::save_as_png(result, "output.png");
     
   } catch (const std::exception& e) {
     std::println("Exception occured: {}", e.what());
