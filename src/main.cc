@@ -2,6 +2,7 @@
 #include <string>
 #include <iostream>
 #include "tracer.h"
+#include "image_io.h"
 #include "renderer.h"
 #include "canny_edge_detector.h"
 
