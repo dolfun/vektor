@@ -1,16 +1,17 @@
 #include "tracer.h"
+
+#include <algorithm>
 #include <array>
+#include <glm/glm.hpp>
 #include <queue>
 #include <vector>
-#include <algorithm>
-#include <glm/glm.hpp>
 
 namespace rng = std::ranges;
 using Image::GreyscaleImage;
 
 constexpr int R = 2;
 struct ivec2_hash {
-  std::size_t operator() (const glm::ivec2& v) const noexcept {
+  std::size_t operator()(const glm::ivec2& v) const noexcept {
     return R * (v.y + R) + (v.x + R);
   }
 };
@@ -40,7 +41,7 @@ DirMap_t dirs_map = [] {
       }
     }
 
-    rng::sort(dirs_map[dir], {}, [dir] (const glm::ivec2 v) {
+    rng::sort(dirs_map[dir], {}, [dir](const glm::ivec2 v) {
       glm::vec2 _dir { dir }, _v { v };
       float length_dir = glm::length(_dir);
       float length_v = glm::length(_v);
@@ -50,32 +51,32 @@ DirMap_t dirs_map = [] {
   }
 
   return dirs_map;
-} ();
+}();
 
 GreyscaleImage fix_image(const GreyscaleImage& img) {
   auto result = img;
 
-  Image::apply(img.width(), img.height(), [&] (int x, int y) {
-    if (img(x + 1, y) && img(x - 1, y)) {
-      if (img(x, y + 1) && !img(x, y + 2) && !img(x + 1, y + 1) && !img(x - 1, y + 1)) {
-        result(x, y) = 1.0f;
-        result(x, y + 1) = 0.0f;
+  Image::apply(img.width(), img.height(), [&](int x, int y) {
+    if (img[x + 1, y] && img[x - 1, y]) {
+      if (img[x, y + 1] && !img[x, y + 2] && !img[x + 1, y + 1] && !img[x - 1, y + 1]) {
+        result[x, y] = 1.0f;
+        result[x, y + 1] = 0.0f;
       }
 
-      if (img(x, y - 1) && !img(x, y - 2) && !img(x + 1, y - 1) && !img(x - 1, y - 1)) {
-        result(x, y) = 1.0f;
-        result(x, y - 1) = 0.0f;
+      if (img[x, y - 1] && !img[x, y - 2] && !img[x + 1, y - 1] && !img[x - 1, y - 1]) {
+        result[x, y] = 1.0f;
+        result[x, y - 1] = 0.0f;
       }
 
-    } else if (img(x, y + 1) && img(x, y - 1)) {
-      if (img(x + 1, y) && !img(x + 2, y) && !img(x + 1, y + 1)&& !img(x + 1, y - 1)) {
-        result(x, y) = 1.0f;
-        result(x + 1, y) = 0.0f;
+    } else if (img[x, y + 1] && img[x, y - 1]) {
+      if (img[x + 1, y] && !img[x + 2, y] && !img[x + 1, y + 1] && !img[x + 1, y - 1]) {
+        result[x, y] = 1.0f;
+        result[x + 1, y] = 0.0f;
       }
 
-      if (img(x - 1, y) && !img(x - 2, y) && !img(x - 1, y + 1) && !img(x - 1, y - 1)) {
-        result(x, y) = 1.0f;
-        result(x - 1, y) = 0.0f;
+      if (img[x - 1, y] && !img[x - 2, y] && !img[x - 1, y + 1] && !img[x - 1, y - 1]) {
+        result[x, y] = 1.0f;
+        result[x - 1, y] = 0.0f;
       }
     }
   });
@@ -87,26 +88,27 @@ using Path = std::vector<glm::ivec2>;
 class PathFinder {
 public:
   PathFinder(const GreyscaleImage& image)
-    : m_image { image }, visited { m_image.width(), m_image.height(), R } {}
+      : m_image { image }, visited { m_image.width(), m_image.height(), R } {
+  }
 
   glm::ivec2 search_corner(glm::ivec2 v, glm::ivec2 p = { -1, -1 }) {
-    visited(v.x, v.y) = true;
+    visited[v.x, v.y] = true;
 
     glm::ivec2 corner = v;
-    const auto& dirs = (p.x == -1 ? dirs_map[{0, 0}] : dirs_map[v - p]);
+    const auto& dirs = (p.x == -1 ? dirs_map[{ 0, 0 }] : dirs_map[v - p]);
     for (auto dir : dirs) {
       auto u = v + dir;
-      if (visited(u.x, u.y) || !m_image(u.x, u.y)) continue;
+      if (visited[u.x, u.y] || !m_image[u.x, u.y]) continue;
       corner = search_corner(u, v);
       break;
     }
 
-    visited(v.x, v.y) = false;
+    visited[v.x, v.y] = false;
     return corner;
   }
 
   void search_path(Path& path, glm::ivec2 v, glm::ivec2 p = { -1, -1 }) {
-    visited(v.x, v.y) = true;
+    visited[v.x, v.y] = true;
 
     auto prev = (path.empty() ? v : path.back());
     if (glm::max(glm::abs(v.x - prev.x), glm::abs(v.y - prev.y)) > 1) {
@@ -117,22 +119,22 @@ public:
         glm::ivec2 dir = prev - *(path.end() - 2);
 
         glm::ivec2 next = prev + 2 * dir;
-        if (m_image(next.x, next.y)) {
+        if (m_image[next.x, next.y]) {
           path.push_back(v - dir);
         } else {
           path.push_back(prev + dir);
         }
 
       } else {
-        path.push_back({prev.x, v.y});
+        path.push_back({ prev.x, v.y });
       }
     }
     path.push_back(v);
 
-    const auto& dirs = (p.x == -1 ? dirs_map[{0, 0}] : dirs_map[v - p]);
+    const auto& dirs = (p.x == -1 ? dirs_map[{ 0, 0 }] : dirs_map[v - p]);
     for (auto dir : dirs) {
       auto u = v + dir;
-      if (visited(u.x, u.y) || !m_image(u.x, u.y)) continue;
+      if (visited[u.x, u.y] || !m_image[u.x, u.y]) continue;
       search_path(path, u, v);
       break;
     }
@@ -141,12 +143,12 @@ public:
   auto result() -> std::vector<Path> {
     std::vector<Path> paths;
 
-    Image::apply(m_image.width(), m_image.height(), [&] (int x, int y) {
-      while (!visited(x, y)) {
-        if (m_image(x, y) < 1.0f) return;
+    Image::apply(m_image.width(), m_image.height(), [&](int x, int y) {
+      while (!visited[x, y]) {
+        if (m_image[x, y] < 1.0f) return;
 
         Path path;
-        auto corner = search_corner({x, y});
+        auto corner = search_corner({ x, y });
         search_path(path, corner);
 
         constexpr int path_size_threshold = 5;
@@ -166,7 +168,7 @@ private:
 
 auto compute_pivot(const Path& path) -> std::vector<int> {
   int n = static_cast<int>(path.size());
-  std::vector<int> next_corner(n);  
+  std::vector<int> next_corner(n);
   for (int i = n - 1, k = n - 1; i >= 0; --i) {
     if (path[i].x != path[k].x && path[i].y != path[k].y) {
       k = i + 1;
@@ -174,23 +176,19 @@ auto compute_pivot(const Path& path) -> std::vector<int> {
     next_corner[i] = k;
   }
 
-  auto cross = [] (const glm::ivec2& a, const glm::ivec2& b) {
-    return a.x * b.y - a.y * b.x;
-  };
+  auto cross = [](const glm::ivec2& a, const glm::ivec2& b) { return a.x * b.y - a.y * b.x; };
 
-  auto floor_div = [] (int a, int b) {
-    return a >= 0 ? a / b : -1 - (-1 - a) / b;
-  };
+  auto floor_div = [](int a, int b) { return a >= 0 ? a / b : -1 - (-1 - a) / b; };
 
   std::vector<int> pivot(n);
   pivot[n - 1] = n - 1;
   for (int i = n - 2; i >= 0; --i) {
-    std::array<int, 4> dir_count{};
+    std::array<int, 4> dir_count {};
     glm::ivec2 dir = path[i + 1] - path[i];
     int dir_index = (3 + 3 * dir.x + dir.y) / 2;
     ++dir_count[dir_index];
 
-    glm::ivec2 constraint0{}, constraint1{};
+    glm::ivec2 constraint0 {}, constraint1 {};
     int k = next_corner[i];
     int k_prev = i;
     while (true) {
@@ -280,8 +278,8 @@ auto compute_prefix_sums(const Path& path) -> PrefixSums_t {
 float compute_penalty(const Path& path, const PrefixSums_t& prefix_sums, int i, int j) {
   if (i > j) std::swap(i, j);
 
-  float x  = static_cast<float>(prefix_sums[j + 1].x  - prefix_sums[i].x );
-  float y  = static_cast<float>(prefix_sums[j + 1].y  - prefix_sums[i].y );
+  float x = static_cast<float>(prefix_sums[j + 1].x - prefix_sums[i].x);
+  float y = static_cast<float>(prefix_sums[j + 1].y - prefix_sums[i].y);
   float x2 = static_cast<float>(prefix_sums[j + 1].x2 - prefix_sums[i].x2);
   float y2 = static_cast<float>(prefix_sums[j + 1].y2 - prefix_sums[i].y2);
   float xy = static_cast<float>(prefix_sums[j + 1].xy - prefix_sums[i].xy);
@@ -291,11 +289,11 @@ float compute_penalty(const Path& path, const PrefixSums_t& prefix_sums, int i, 
   float ey = static_cast<float>(path[j].x - path[i].x);
   float ex = -static_cast<float>(path[j].y - path[i].y);
 
-  float a = (x2 - 2.0f*x*p.x) / k + p.x*p.x;
-  float b = (xy - x*p.y - y*p.x) / k + p.x*p.y;
-  float c = (y2 - 2.0f*y*p.y) / k + p.y*p.y;
+  float a = (x2 - 2.0f * x * p.x) / k + p.x * p.x;
+  float b = (xy - x * p.y - y * p.x) / k + p.x * p.y;
+  float c = (y2 - 2.0f * y * p.y) / k + p.y * p.y;
 
-  float s = ex*ex*a + 2.0f*ex*ey*b + ey*ey*c;
+  float s = ex * ex * a + 2.0f * ex * ey * b + ey * ey * c;
   return glm::sqrt(s);
 }
 
@@ -374,22 +372,20 @@ auto compute_optimal_sequence(const Path& path) -> std::vector<int> {
 }
 
 void path_to_bezier_curves(std::vector<BezierCurve>& curves, const std::vector<glm::vec2>& path) {
-  auto straight_line_to_bezier = [] (glm::vec2 p1, glm::vec2 p2) {
+  auto straight_line_to_bezier = [](glm::vec2 p1, glm::vec2 p2) {
     auto m = (p1 + p2) / 2.0f;
-    BezierCurve curve {
-      .p0 = p1, .p1 = m, .p2 = m, .p3 = p2
-    };
+    BezierCurve curve { .p0 = p1, .p1 = m, .p2 = m, .p3 = p2 };
     return curve;
   };
 
-  auto denom = [] (glm::vec2 p0, glm::vec2 p2) {
+  auto denom = [](glm::vec2 p0, glm::vec2 p2) {
     glm::vec2 r;
     r.y = glm::sign(p2.x - p0.x);
     r.x = -glm::sign(p2.y - p0.y);
     return r.y * (p2.x - p0.x) - r.x * (p2.y - p0.y);
   };
 
-  auto area_parallelogram = [] (glm::vec2 p0, glm::vec2 p1, glm::vec2 p2) {
+  auto area_parallelogram = [](glm::vec2 p0, glm::vec2 p1, glm::vec2 p2) {
     auto u1 = p1 - p0, u2 = p2 - p0;
     return u1.x * u2.y - u2.x * u1.y;
   };
@@ -431,7 +427,6 @@ void path_to_bezier_curves(std::vector<BezierCurve>& curves, const std::vector<g
       glm::vec2 p2 = glm::vec2(path[k]) + t * glm::vec2(path[j] - path[k]);
       curves.emplace_back(p0, p1, p2, p3);
     }
-
   }
 }
 
@@ -464,4 +459,4 @@ auto trace(const GreyscaleImage& image) -> std::vector<BezierCurve> {
   return curves;
 }
 
-} // namespace Tracer
+}  // namespace Tracer

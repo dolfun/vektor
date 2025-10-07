@@ -1,7 +1,7 @@
 #pragma once
-#include <vector>
-#include <utility>
 #include <glm/vec3.hpp>
+#include <utility>
+#include <vector>
 
 namespace Image {
 
@@ -9,15 +9,16 @@ template <typename T>
 class Image {
 public:
   Image(int width, int height, int padding = 0)
-  : m_width { width }, m_height { height }, m_padding { padding },
-    m_data((m_width + 2 * m_padding) * (m_height + 2 * padding)) {}
-
-  const T& operator()(int x, int y) const noexcept {
-    return m_data[m_width * (y + m_padding) + (x + m_padding)];
+      : m_width { width },
+        m_height { height },
+        m_padding { padding },
+        m_data((m_width + 2 * m_padding) * (m_height + 2 * padding)) {
   }
 
-  T& operator()(int x, int y) noexcept {
-    return const_cast<T&>(std::as_const(*this)(x, y));
+  auto operator[](this auto&& self, int x, int y) noexcept -> decltype(auto) {
+    return std::forward_like<decltype(self)>(
+      self.m_data[self.m_width * (y + self.m_padding) + (x + self.m_padding)]
+    );
   }
 
   int width() const noexcept {
@@ -57,4 +58,4 @@ inline void apply(int width, int height, auto&& f) noexcept {
   apply_with_inset(width, height, 0, 0, std::forward<decltype(f)>(f));
 }
 
-} // namespace Image
+}  // namespace Image

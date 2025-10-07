@@ -6,6 +6,7 @@ namespace Canny {
 
 // Scharr 5x5
 // https://www.hlevkin.com/hlevkin/47articles/SobelScharrGradients5x5.pdf
+// clang-format off
 constexpr Image::Kernel<5> gradient_x_kernel {
   {
     -1, -1, 0, 1, 1,
@@ -27,10 +28,11 @@ constexpr Image::Kernel<5> gradient_y_kernel {
   },
   60
 };
+// clang-format on
 
 static_assert(gradient_x_kernel.size() == gradient_y_kernel.size());
 
 constexpr int padding_requirement = gradient_x_kernel.size() / 2;
 Image::GreyscaleImage detect_edges(const Image::ColorImage&, float threshold = -1.0f);
 
-} // namespace Canny
+}  // namespace Canny
