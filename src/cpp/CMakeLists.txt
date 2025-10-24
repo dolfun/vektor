@@ -1,24 +1,28 @@
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+add_subdirectory(vektor)
 
-add_library(image image.h kernel.h)
-target_compile_features(image PUBLIC cxx_std_23)
-target_link_libraries(image PUBLIC glm::glm)
+if (EMSCRIPTEN)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/module")
 
-add_library(image_io image_io.h image_io.cc)
-target_compile_features(image_io PUBLIC cxx_std_23)
-target_link_libraries(image_io PUBLIC image PRIVATE stb)
+  add_executable(vektor vektor_bindings.cc)
+  target_link_libraries(vektor PRIVATE vektor_lib)
+  target_include_directories(vektor PRIVATE ${EMSCRIPTEN_ROOT_PATH}/system/include)
+  set_target_properties(vektor PROPERTIES SUFFIX ".mjs")
 
-add_library(canny_edge_detector canny_edge_detector.h canny_edge_detector.cc)
-target_compile_features(canny_edge_detector PUBLIC cxx_std_23)
-target_link_libraries(canny_edge_detector PUBLIC image)
+  set(vektor_tsd_file "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/vektor.d.ts")
+  target_link_options(vektor PRIVATE
+    "SHELL:-lembind"
+    "SHELL:-sMODULARIZE=1"
+    "SHELL:-sEXPORT_ES6=1"
+    "SHELL:-sENVIRONMENT=web"
+    "SHELL:--emit-tsd=${vektor_tsd_file}"
+    # "SHELL:-sALLOW_MEMORY_GROWTH=1"
 
-add_library(tracer tracer.h tracer.cc bezier_curve.h)
-target_compile_features(tracer PUBLIC cxx_std_23)
-target_link_libraries(tracer PUBLIC image)
+    "$<$<CONFIG:Debug>:SHELL:-O0>"
+    "$<$<CONFIG:Release>:SHELL:-O3 -flto>"
+  )
+else()
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
-add_library(renderer renderer.h renderer.cc bezier_curve.h)
-target_compile_features(renderer PUBLIC cxx_std_23)
-target_link_libraries(renderer PUBLIC image)
-
-add_executable(vektor main.cc)
-target_link_libraries(vektor PRIVATE canny_edge_detector tracer renderer image_io)
+  add_executable(vektor vektor_bin.cc)
+  target_link_libraries(vektor PRIVATE vektor_lib)
+endif()

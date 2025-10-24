@@ -2,10 +2,10 @@
 #include <map>
 #include <string>
 
-#include "canny_edge_detector.h"
-#include "image_io.h"
-#include "renderer.h"
-#include "tracer.h"
+#include "vektor/canny_edge_detector.h"
+#include "vektor/image_io.h"
+#include "vektor/renderer.h"
+#include "vektor/tracer.h"
 
 int main(int argc, char** argv) {
   if (argc < 2) {

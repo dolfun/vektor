@@ -1,0 +1,4 @@
+If:
+  PathMatch: "src/cpp/vektor_bindings.cc"
+Diagnostics:
+  Suppress: ["redefinition", "unknown_typename_suggest"]
