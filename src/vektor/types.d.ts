@@ -12,9 +12,6 @@ export interface ClassHandle {
   clone(): this;
 }
 export type Vec3f = {
-  x: number,
-  y: number,
-  z: number,
   r: number,
   g: number,
   b: number
@@ -23,15 +20,15 @@ export type Vec3f = {
 export interface ColorImage extends ClassHandle {
   readonly width: number;
   readonly height: number;
-  get_pixel(_0: number, _1: number): Vec3f;
-  set_pixel(_0: number, _1: number, _2: Vec3f): void;
+  getPixel(_0: number, _1: number): Vec3f;
+  setPixel(_0: number, _1: number, _2: Vec3f): void;
 }
 
 export interface GreyscaleImage extends ClassHandle {
   readonly width: number;
   readonly height: number;
-  get_pixel(_0: number, _1: number): number;
-  set_pixel(_0: number, _1: number, _2: number): void;
+  getPixel(_0: number, _1: number): number;
+  setPixel(_0: number, _1: number, _2: number): void;
 }
 
 interface EmbindModule {
@@ -41,7 +38,7 @@ interface EmbindModule {
   GreyscaleImage: {
     new(_0: number, _1: number): GreyscaleImage;
   };
-  detect_edges(_0: ColorImage, _1: number): GreyscaleImage;
+  detectEdges(_0: ColorImage, _1: number): GreyscaleImage;
 }
 
 export type MainModule = WasmModule & EmbindModule;

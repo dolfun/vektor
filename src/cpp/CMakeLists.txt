@@ -15,7 +15,7 @@ if (EMSCRIPTEN)
     "SHELL:-sEXPORT_ES6=1"
     "SHELL:-sENVIRONMENT=web"
     "SHELL:--emit-tsd=${vektor_tsd_file}"
-    # "SHELL:-sALLOW_MEMORY_GROWTH=1"
+    "SHELL:-sALLOW_MEMORY_GROWTH=1"
 
     "$<$<CONFIG:Debug>:SHELL:-O0>"
     "$<$<CONFIG:Release>:SHELL:-O3 -flto>"

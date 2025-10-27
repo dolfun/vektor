@@ -1,17 +1,12 @@
 import React, { useState, useRef } from "react";
-
 import { Box, Button, Stack } from "@mui/material";
 
-import {
-  ConfigPanel,
-  MultiStageCanvas,
-  FinalStageCanvas,
-  type Stage,
-} from "@/components";
-import type { MainModule } from "@/vektor";
-import { getImagePixelsRGBA8 } from "@/utility";
+import { ConfigPanel, MultiStageCanvas, FinalStageCanvas } from "@/components";
+import { getImagePixelsRGBA8, createStages } from "@/utility";
+import type { VektorModule } from "@/vektor";
+import type { Stage } from "@/utility";
 
-export default function App({ vektorModule }: { vektorModule: MainModule }) {
+export default function App({ vektorModule }: { vektorModule: VektorModule }) {
   const [stages, setStages] = useState<Stage[] | null>(null);
   const [showFinal, setShowFinal] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -24,11 +19,10 @@ export default function App({ vektorModule }: { vektorModule: MainModule }) {
       e.currentTarget.value = "";
       return;
     }
-    const img = await getImagePixelsRGBA8(file);
-    const triplet = [1, 2, 3].map((i) => ({ ...img, stageName: `Stage ${i}` }));
-    setStages(triplet);
-    setShowFinal(false);
-    e.currentTarget.value = "";
+
+    const imageData = await getImagePixelsRGBA8(file);
+    const stages = createStages(vektorModule, imageData);
+    setStages(stages);
   };
 
   return (

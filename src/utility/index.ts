@@ -1,1 +1,2 @@
-export { getImagePixelsRGBA8 } from "./image";
+export * from "./image";
+export * from "./stage";
