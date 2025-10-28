@@ -3,11 +3,14 @@ import { Box, Button, Stack } from "@mui/material";
 
 import { ConfigPanel, MultiStageCanvas, FinalStageCanvas } from "@/components";
 import { getImagePixelsRGBA8, createStages } from "@/utility";
-import type { VektorModule } from "@/vektor";
+import type { BezierCurve, VektorModule } from "@/vektor";
 import type { Stage } from "@/utility";
 
 export default function App({ vektorModule }: { vektorModule: VektorModule }) {
-  const [stages, setStages] = useState<Stage[] | null>(null);
+  const [resultState, setResultState] = useState<{
+    stages: Stage[];
+    curves: BezierCurve[];
+  } | null>(null);
   const [showFinal, setShowFinal] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -20,14 +23,14 @@ export default function App({ vektorModule }: { vektorModule: VektorModule }) {
       return;
     }
 
-    const imageData = await getImagePixelsRGBA8(file);
-    const stages = createStages(vektorModule, imageData);
-    setStages(stages);
+    const sourceImageData = await getImagePixelsRGBA8(file);
+    const { stages, curves } = createStages(vektorModule, sourceImageData);
+    setResultState({ stages, curves });
   };
 
   return (
     <Box sx={{ height: "100vh", width: "100vw", overflow: "hidden" }}>
-      {!stages ? (
+      {!resultState ? (
         <Box sx={{ height: "100%", display: "grid", placeItems: "center" }}>
           <Button
             variant="contained"
@@ -59,9 +62,9 @@ export default function App({ vektorModule }: { vektorModule: VektorModule }) {
             }}
           >
             {showFinal ? (
-              <FinalStageCanvas />
+              <FinalStageCanvas curves={resultState.curves} />
             ) : (
-              <MultiStageCanvas stages={stages} />
+              <MultiStageCanvas stages={resultState.stages} />
             )}
           </Box>
           <Box sx={{ height: "100%" }}>

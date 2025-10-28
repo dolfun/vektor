@@ -20,7 +20,7 @@
       "@/*": ["./src/*"]
     },
 
-    "types": ["vite/client"]
+    "types": ["vite/client", "desmos"]
   },
   "include": ["src"]
 }

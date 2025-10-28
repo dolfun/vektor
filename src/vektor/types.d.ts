@@ -11,11 +11,13 @@ export interface ClassHandle {
   [Symbol.dispose](): void;
   clone(): this;
 }
-export type Vec3f = {
-  r: number,
-  g: number,
-  b: number
-};
+export interface BezierCurveArray extends ClassHandle {
+  size(): number;
+  get(_0: number): BezierCurve | undefined;
+  push_back(_0: BezierCurve): void;
+  resize(_0: number, _1: BezierCurve): void;
+  set(_0: number, _1: BezierCurve): boolean;
+}
 
 export interface ColorImage extends ClassHandle {
   readonly width: number;
@@ -31,13 +33,36 @@ export interface GreyscaleImage extends ClassHandle {
   setPixel(_0: number, _1: number, _2: number): void;
 }
 
+export type Vec2f = {
+  x: number,
+  y: number
+};
+
+export type BezierCurve = {
+  p0: Vec2f,
+  p1: Vec2f,
+  p2: Vec2f,
+  p3: Vec2f
+};
+
+export type Vec3f = {
+  r: number,
+  g: number,
+  b: number
+};
+
 interface EmbindModule {
+  BezierCurveArray: {
+    new(): BezierCurveArray;
+  };
   ColorImage: {
     new(_0: number, _1: number): ColorImage;
   };
   GreyscaleImage: {
     new(_0: number, _1: number): GreyscaleImage;
   };
+  traceEdges(_0: GreyscaleImage): BezierCurveArray;
+  renderCurves(_0: number, _1: number, _2: BezierCurveArray): GreyscaleImage;
   detectEdges(_0: ColorImage, _1: number): GreyscaleImage;
 }
 

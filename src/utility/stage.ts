@@ -3,7 +3,7 @@ import {
   convertColorImageToImageData,
 } from "./image";
 import type { ImageData } from "./image";
-import type { VektorModule } from "@/vektor";
+import type { VektorModule, BezierCurve } from "@/vektor";
 
 export type Stage = {
   imageData: ImageData;
@@ -13,22 +13,39 @@ export type Stage = {
 export function createStages(
   vektorModule: VektorModule,
   sourceImageData: ImageData
-): Stage[] {
+): { stages: Stage[]; curves: BezierCurve[] } {
   const sourceImage = convertImageDataToColorImage(
     vektorModule,
     sourceImageData
   );
 
-  const resultImage = vektorModule.detectEdges(sourceImage, -1);
-  const resultImageData = convertColorImageToImageData(resultImage);
+  const cannyImage = vektorModule.detectEdges(sourceImage, -1);
+  const cannyImageData = convertColorImageToImageData(cannyImage);
+
+  const curvesVector = vektorModule.traceEdges(cannyImage);
+  const curves: BezierCurve[] = Array.from(
+    { length: curvesVector.size() },
+    (_, i) => curvesVector.get(i)!
+  );
+
+  const plotImage = vektorModule.renderCurves(
+    sourceImageData.width,
+    sourceImageData.height,
+    curvesVector
+  );
+  const plotImageData = convertColorImageToImageData(plotImage);
 
   const stages: Stage[] = [
     { imageData: sourceImageData, stageName: "Source" },
-    { imageData: resultImageData, stageName: "Result" },
+    { imageData: cannyImageData, stageName: "Canny Result" },
+    { imageData: plotImageData, stageName: "Plot Result" },
   ];
 
+  // nasty
   sourceImage.delete();
-  resultImage.delete();
+  cannyImage.delete();
+  curvesVector.delete();
+  plotImage.delete();
 
-  return stages;
+  return { stages, curves };
 }
