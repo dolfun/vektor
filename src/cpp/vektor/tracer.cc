@@ -3,8 +3,6 @@
 #include <algorithm>
 #include <array>
 #include <glm/glm.hpp>
-#include <queue>
-#include <vector>
 
 #include "bezier_curve.h"
 #include "image.h"
@@ -332,21 +330,18 @@ auto PathTracer::compute_sums(int i, int j) const noexcept {
 void PathTracer::compute_optimal_sequence() noexcept {
   auto compute_penalty = [this](int i, int j) {
     auto [x, y, x2, y2, xy, k] = compute_sums(i, j);
-
     auto p = glm::dvec2(m_path[i] + m_path[j]) / 2.0 - glm::dvec2(m_path[0]);
     auto ey = static_cast<double>(m_path[j].x - m_path[i].x);
     auto ex = -static_cast<double>(m_path[j].y - m_path[i].y);
-
     double a = (x2 - 2.0 * x * p.x) / k + p.x * p.x;
     double b = (xy - x * p.y - y * p.x) / k + p.x * p.y;
     double c = (y2 - 2.0 * y * p.y) / k + p.y * p.y;
-
     double s = ex * ex * a + 2.0 * ex * ey * b + ey * ey * c;
     return glm::sqrt(s);
   };
 
   std::vector<int> clip0(n);
-  clip0[0] = m_pivot[0] - 1;
+  clip0[0] = glm::max(1, m_pivot[0] - 1);
   clip0[n - 1] = n - 1;
   for (int i = 1; i < n - 1; ++i) {
     int c = m_pivot[i - 1] - 1;
@@ -354,40 +349,17 @@ void PathTracer::compute_optimal_sequence() noexcept {
     clip0[i] = glm::max(i + 1, c);
   }
 
-  using Cost_t = std::pair<int, double>;
-  std::vector<std::vector<std::pair<int, Cost_t>>> graph(n);
-  for (int i = 0; i < n; ++i) {
-    for (int j = i + 1; j <= clip0[i]; ++j) {
-      auto penalty = compute_penalty(i, j);
-      graph[i].emplace_back(j, std::make_pair(1, penalty));
-    }
-  }
-
-  std::vector<char> vis(n);
-  std::vector<Cost_t> dist(n, { 1e7, 0.0 });
-  std::vector<int> prev(n);
-
-  using Queue_t = std::pair<Cost_t, int>;
-  std::priority_queue<Queue_t, std::vector<Queue_t>, std::greater<Queue_t>> pq;
-  pq.emplace(std::make_pair(0, 0.0), 0);
+  using Cost = std::pair<int, double>;
+  std::vector<Cost> dist(n, { INT_MAX, 0.0 });
+  std::vector<int> prev(n, -1);
   dist[0] = { 0, 0.0 };
-  while (!pq.empty()) {
-    auto p = pq.top();
-    pq.pop();
-
-    auto x = p.second;
-    if (vis[x]) continue;
-    vis[x] = true;
-
-    for (auto v : graph[x]) {
-      int e = v.first;
-      auto c1 = v.second;
-      Cost_t c2 = { dist[x].first + c1.first, dist[x].second + c1.second };
-
-      if (c2 < dist[e]) {
-        prev[e] = x;
-        dist[e] = c2;
-        pq.emplace(dist[e], e);
+  for (int i = 0; i < n; ++i) {
+    if (dist[i].first == INT_MAX) continue;
+    for (int j = i + 1; j <= clip0[i]; ++j) {
+      Cost cand = { dist[i].first + 1, dist[i].second + compute_penalty(i, j) };
+      if (cand < dist[j]) {
+        dist[j] = cand;
+        prev[j] = i;
       }
     }
   }
@@ -398,7 +370,6 @@ void PathTracer::compute_optimal_sequence() noexcept {
   }
   m_seq.push_back(0);
   rng::reverse(m_seq);
-
   m = static_cast<int>(m_seq.size());
 }
 
