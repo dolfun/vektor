@@ -9,6 +9,9 @@
 #include <stack>
 #include <utility>
 
+#include "image.h"
+
+using Image::BinaryImage;
 using Image::ColorImage;
 using Image::GreyscaleImage;
 constexpr auto pi = std::numbers::pi_v<float>;
@@ -154,7 +157,7 @@ float compute_threshold(const GreyscaleImage& image, int nr_bins = 256) {
   return static_cast<float>(maximum_index) / nr_bins;
 }
 
-GreyscaleImage apply_hysteresis(const GreyscaleImage& image, float high, float low) {
+BinaryImage apply_hysteresis(const GreyscaleImage& image, float high, float low) {
   // clang-format off
   constexpr std::array<std::pair<int, int>, 8> dirs = {{
      { -1, -1, },
@@ -201,13 +204,13 @@ GreyscaleImage apply_hysteresis(const GreyscaleImage& image, float high, float l
   };
 
   std::vector<std::vector<glm::ivec2>> weak_pixels;
-  GreyscaleImage result { width, height, 2 };
+  BinaryImage result { width, height, 2 };
   Image::apply(width, height, [&](int x, int y) {
     if (visited[x, y]) return;
     float val = image[x, y];
 
     if (val >= high) {
-      result[x, y] = 1.0f;
+      result[x, y] = 1;
 
     } else if (val >= low) {
       std::vector<glm::ivec2> points;
@@ -215,7 +218,7 @@ GreyscaleImage apply_hysteresis(const GreyscaleImage& image, float high, float l
 
       if (strong_pixel_found) {
         for (auto p : points) {
-          result[p.x, p.y] = 1.0f;
+          result[p.x, p.y] = 1;
         }
       } else {
         weak_pixels.emplace_back(std::move(points));
@@ -225,11 +228,11 @@ GreyscaleImage apply_hysteresis(const GreyscaleImage& image, float high, float l
 
   std::ranges::sort(weak_pixels, std::greater<> {}, [&](const auto& v) { return v.size(); });
 
-  constexpr float take_percentile = 0.25;
+  constexpr float take_percentile = 0.25f;
   const int take_amount = static_cast<int>(weak_pixels.size() * take_percentile);
   for (const auto& v : std::views::take(weak_pixels, take_amount)) {
     for (auto p : v) {
-      result[p.x, p.y] = 1.0f;
+      result[p.x, p.y] = 1;
     }
   }
 
@@ -238,7 +241,7 @@ GreyscaleImage apply_hysteresis(const GreyscaleImage& image, float high, float l
 
 namespace Canny {
 
-GreyscaleImage detect_edges(const ColorImage& source_image, float threshold) {
+BinaryImage detect_edges(const ColorImage& source_image, float threshold) {
   auto blurred_image = apply_adaptive_blur(source_image, 1.0f, 1);
   auto gradient_image = compute_gradient(blurred_image);
   auto thinned_image = thin_edges(gradient_image);

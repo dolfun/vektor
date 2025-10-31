@@ -1,4 +1,9 @@
-import type { VektorModule, ColorImage, GreyscaleImage } from "@/vektor";
+import type {
+  VektorModule,
+  ColorImage,
+  GreyscaleImage,
+  BinaryImage,
+} from "@/vektor";
 
 export type ImageData = {
   readonly data: ImageDataArray;
@@ -56,7 +61,7 @@ export function convertImageDataToColorImage(
 }
 
 export function convertColorImageToImageData(
-  image: GreyscaleImage | ColorImage
+  image: ColorImage | GreyscaleImage | BinaryImage
 ): ImageData {
   const { width, height } = image;
   const data = new Uint8ClampedArray(width * height * 4);

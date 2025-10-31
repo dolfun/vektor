@@ -32,7 +32,7 @@ void create_image_class_bindings(const char* name) {
 }
 
 EMSCRIPTEN_BINDINGS(my_module) {
-  value_object<glm::vec2>("Vec2f").field("x", &glm::vec2::x).field("y", &glm::vec2::y);
+  value_object<glm::dvec2>("Vec2f").field("x", &glm::dvec2::x).field("y", &glm::dvec2::y);
 
   value_object<glm::vec3>("Vec3f")
     .field("r", &glm::vec3::r)
@@ -49,6 +49,7 @@ EMSCRIPTEN_BINDINGS(my_module) {
 
   create_image_class_bindings<glm::vec3>("ColorImage");
   create_image_class_bindings<float>("GreyscaleImage");
+  create_image_class_bindings<char>("BinaryImage");
 
   function("detectEdges", &Canny::detect_edges, return_value_policy::take_ownership());
   function("traceEdges", &Tracer::trace, return_value_policy::take_ownership());

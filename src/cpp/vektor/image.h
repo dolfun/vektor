@@ -45,6 +45,7 @@ private:
 
 using ColorImage = Image<glm::vec3>;
 using GreyscaleImage = Image<float>;
+using BinaryImage = Image<char>;
 
 inline void apply_with_inset(int width, int height, int inset_x, int inset_y, auto&& f) noexcept {
   for (int y = inset_y; y < height - inset_y; ++y) {

@@ -4,6 +4,6 @@
 
 namespace Tracer {
 
-auto trace(const Image::GreyscaleImage&) -> std::vector<BezierCurve>;
+auto trace(const Image::BinaryImage&) -> std::vector<BezierCurve>;
 
 }  // namespace Tracer

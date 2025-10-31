@@ -33,6 +33,19 @@ export interface GreyscaleImage extends ClassHandle {
   setPixel(_0: number, _1: number, _2: number): void;
 }
 
+export interface BinaryImage extends ClassHandle {
+  readonly width: number;
+  readonly height: number;
+  getPixel(_0: number, _1: number): number;
+  setPixel(_0: number, _1: number, _2: number): void;
+}
+
+export type Vec3f = {
+  r: number,
+  g: number,
+  b: number
+};
+
 export type Vec2f = {
   x: number,
   y: number
@@ -45,12 +58,6 @@ export type BezierCurve = {
   p3: Vec2f
 };
 
-export type Vec3f = {
-  r: number,
-  g: number,
-  b: number
-};
-
 interface EmbindModule {
   BezierCurveArray: {
     new(): BezierCurveArray;
@@ -61,9 +68,12 @@ interface EmbindModule {
   GreyscaleImage: {
     new(_0: number, _1: number): GreyscaleImage;
   };
-  traceEdges(_0: GreyscaleImage): BezierCurveArray;
+  BinaryImage: {
+    new(_0: number, _1: number): BinaryImage;
+  };
+  traceEdges(_0: BinaryImage): BezierCurveArray;
   renderCurves(_0: number, _1: number, _2: BezierCurveArray): GreyscaleImage;
-  detectEdges(_0: ColorImage, _1: number): GreyscaleImage;
+  detectEdges(_0: ColorImage, _1: number): BinaryImage;
 }
 
 export type MainModule = WasmModule & EmbindModule;
