@@ -11,7 +11,7 @@ if (EMSCRIPTEN)
   set(vektor_tsd_file "${CMAKE_SOURCE_DIR}/src/vektor/types.d.ts")
   target_link_options(vektor PRIVATE
     "SHELL:-lembind"
-    "SHELL:-sSTACK_SIZE=1048576"
+    "SHELL:-sSTACK_SIZE=16777216"
     "SHELL:-sMODULARIZE=1"
     "SHELL:-sEXPORT_ES6=1"
     "SHELL:-sENVIRONMENT=web"

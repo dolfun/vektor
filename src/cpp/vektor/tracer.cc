@@ -7,6 +7,10 @@
 #include "bezier_curve.h"
 #include "image.h"
 
+#ifdef __FIX_WASM__
+#include <thread>
+#endif
+
 namespace rng = std::ranges;
 using Image::BinaryImage;
 
@@ -185,6 +189,10 @@ public:
     compute_optimal_sequence();
     compute_vertices();
     compute_bezier_curves();
+
+#ifdef __FIX_WASM__
+    std::this_thread::sleep_for(std::chrono::microseconds(1));
+#endif
   }
 
   auto bezier_curves() const noexcept -> const std::vector<BezierCurve> {

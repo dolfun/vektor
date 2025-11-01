@@ -16,7 +16,7 @@ export type StagesParams = {
 export const defaultStageParams: StagesParams = {
   blurFactor: 1.0,
   nrIterations: 1,
-  lowThresholdRatio: 0.5,
+  lowThresholdRatio: 0.25,
   takePercentile: 0.25,
   plotScale: 2,
 };
