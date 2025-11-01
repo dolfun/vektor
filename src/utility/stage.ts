@@ -6,6 +6,7 @@ import type { ImageData } from "./image";
 import type { VektorModule, BezierCurve } from "@/vektor";
 
 export type StagesParams = {
+  nrQuantizationBins: number;
   blurFactor: number;
   nrIterations: number;
   lowThresholdRatio: number;
@@ -14,6 +15,7 @@ export type StagesParams = {
 };
 
 export const defaultStageParams: StagesParams = {
+  nrQuantizationBins: 256,
   blurFactor: 1.0,
   nrIterations: 1,
   lowThresholdRatio: 0.25,
@@ -42,9 +44,13 @@ export function createStages(
       convertImageDataToColorImage(vektorModule, sourceImageData)
     );
 
+    const quantizedImage = track(
+      vektorModule.quantizeImage(sourceImage, stageParams.nrQuantizationBins)
+    );
+
     const blurredImage = track(
       vektorModule.applyAdaptiveBlur(
-        sourceImage,
+        quantizedImage,
         stageParams.blurFactor,
         stageParams.nrIterations
       )
@@ -76,6 +82,7 @@ export function createStages(
       )
     );
 
+    const quantizedImageData = convertColorImageToImageData(quantizedImage);
     const blurredImageData = convertColorImageToImageData(blurredImage);
     const gradientImageData = convertColorImageToImageData(gradientImage);
     const thinnedImageData = convertColorImageToImageData(thinnedImage);
@@ -89,6 +96,7 @@ export function createStages(
 
     const stages: Stage[] = [
       { imageData: sourceImageData, stageName: "Source Image" },
+      { imageData: quantizedImageData, stageName: "Quantized Image" },
       { imageData: blurredImageData, stageName: "Blurred Image" },
       { imageData: gradientImageData, stageName: "Gradient Image" },
       { imageData: thinnedImageData, stageName: "Thinned Image" },

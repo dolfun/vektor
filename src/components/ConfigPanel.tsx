@@ -39,11 +39,17 @@ export function ConfigPanel({
     };
 
   const marksPlotScale = [
-    { value: 1, label: "1×" },
-    { value: 2, label: "2×" },
-    { value: 3, label: "3×" },
-    { value: 4, label: "4×" },
+    { value: 1, label: "1x" },
+    { value: 2, label: "2x" },
+    { value: 3, label: "3x" },
+    { value: 4, label: "4x" },
   ];
+
+  const quantizationValues = [4, 8, 16, 64, 256];
+  const quantizationMarks = quantizationValues.map((v, i) => ({
+    value: i + 1,
+    label: String(v),
+  }));
 
   const handleReset = () => {
     setStageParams(defaultStageParams);
@@ -65,6 +71,41 @@ export function ConfigPanel({
           Configuration
         </Typography>
         <Divider />
+
+        <Accordion disableGutters>
+          <AccordionSummary expandIcon={<span>▾</span>}>
+            <Typography variant="body1">Quantization</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Stack spacing={2} sx={{ px: 1 }}>
+              <Box>
+                <Typography variant="subtitle2" gutterBottom>
+                  # Quantization Bins
+                </Typography>
+                <Slider
+                  value={
+                    quantizationValues.indexOf(stageParams.nrQuantizationBins) +
+                    1
+                  }
+                  onChange={(_, v) => {
+                    const idx = Math.round(v as number) - 1;
+                    handleParamChange("nrQuantizationBins")(
+                      _,
+                      quantizationValues[idx]
+                    );
+                  }}
+                  min={1}
+                  max={quantizationValues.length}
+                  step={1}
+                  marks={quantizationMarks}
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={(v) => quantizationValues[v - 1]}
+                  aria-label="Number of Quantization Bins"
+                />
+              </Box>
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
 
         <Accordion disableGutters>
           <AccordionSummary expandIcon={<span>▾</span>}>

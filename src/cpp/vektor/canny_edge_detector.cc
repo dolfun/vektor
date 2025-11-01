@@ -19,11 +19,30 @@ constexpr auto pi = std::numbers::pi_v<float>;
 
 namespace Canny {
 
+ColorImage quantize_image(const ColorImage& image, int nr_bins) {
+  int width = image.width();
+  int height = image.height();
+
+  if (nr_bins >= MAX_BINS) {
+    return image;
+  }
+
+  ColorImage result { image.width(), image.height(), image.padding() };
+  Image::apply(width, height, [&](int x, int y) {
+    for (int k = 0; k < 3; ++k) {
+      float val = image[x, y][k];
+      result[x, y][k] = glm::round(val * (nr_bins - 1)) / (nr_bins - 1);
+    }
+  });
+
+  return result;
+}
+
 ColorImage apply_adaptive_blur(const ColorImage& image, float h, int nr_iterations) {
   int width = image.width();
   int height = image.height();
 
-  ColorImage result = image;
+  ColorImage result { image };
   for (int iter = 0; iter < nr_iterations; ++iter) {
     ColorImage source = std::move(result);
     result = ColorImage { width, height, Canny::gradient_x_kernel.size() / 2 };

@@ -56,6 +56,7 @@ EMSCRIPTEN_BINDINGS(my_module) {
   create_image_class_bindings<float>("GreyscaleImage");
   create_image_class_bindings<char>("BinaryImage");
 
+  function("quantizeImage", &Canny::quantize_image, return_value_policy::take_ownership());
   function("applyAdaptiveBlur", &Canny::apply_adaptive_blur, return_value_policy::take_ownership());
   function("computeGradient", &Canny::compute_gradient, return_value_policy::take_ownership());
   function("thinEdges", &Canny::thin_edges, return_value_policy::take_ownership());

@@ -30,8 +30,10 @@ constexpr Image::Kernel<5> gradient_y_kernel {
 };
 // clang-format on
 
+constexpr int MAX_BINS = 256;
 constexpr int padding_requirement = gradient_x_kernel.size() / 2;
 
+Image::ColorImage quantize_image(const Image::ColorImage&, int nr_bins = MAX_BINS);
 Image::ColorImage apply_adaptive_blur(const Image::ColorImage&, float, int nr_iterations = 1);
 Image::GradientImage compute_gradient(const Image::ColorImage&);
 Image::GreyscaleImage thin_edges(const Image::GradientImage&);

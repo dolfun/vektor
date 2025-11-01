@@ -89,6 +89,7 @@ interface EmbindModule {
   computeGradient(_0: ColorImage): GradientImage;
   thinEdges(_0: GradientImage): GreyscaleImage;
   traceEdges(_0: BinaryImage): BezierCurveArray;
+  quantizeImage(_0: ColorImage, _1: number): ColorImage;
   renderCurves(_0: number, _1: number, _2: BezierCurveArray): GreyscaleImage;
   applyAdaptiveBlur(_0: ColorImage, _1: number, _2: number): ColorImage;
   computeThreshold(_0: GreyscaleImage): number;
