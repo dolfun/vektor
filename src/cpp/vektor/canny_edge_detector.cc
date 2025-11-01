@@ -60,25 +60,22 @@ GradientImage compute_gradient(const ColorImage& image) {
   float max_magnitude = 0.0f;
   int inset = 0;
   Image::apply_with_inset(width, height, inset, inset, [&](int x, int y) {
-    auto grad_x = Image::evaluate_kernel<glm::vec3>(Canny::gradient_x_kernel, image, x, y);
-    auto grad_y = Image::evaluate_kernel<glm::vec3>(Canny::gradient_y_kernel, image, x, y);
+    auto gx = Image::evaluate_kernel<glm::vec3>(Canny::gradient_x_kernel, image, x, y);
+    auto gy = Image::evaluate_kernel<glm::vec3>(Canny::gradient_y_kernel, image, x, y);
 
-    float grad_r = grad_x.r * grad_x.r + grad_y.r * grad_y.r;
-    float grad_g = grad_x.g * grad_x.g + grad_y.g * grad_y.g;
-    float grad_b = grad_x.b * grad_x.b + grad_y.b * grad_y.b;
+    float a = glm::dot(gx, gx);
+    float b = glm::dot(gx, gy);
+    float c = glm::dot(gy, gy);
 
-    glm::vec2 grad;
-    if (grad_r > grad_g && grad_r > grad_b) {
-      grad = glm::vec2(grad_x.r, grad_y.r);
-    } else if (grad_g > grad_b) {
-      grad = glm::vec2(grad_x.g, grad_y.g);
-    } else {
-      grad = glm::vec2(grad_x.b, grad_y.b);
-    }
+    float trace = a + c;
+    float delta = glm::max(0.0f, (a - c) * (a - c) + 4.0f * b * b);
+    float lambda_max = 0.5f * (trace + glm::sqrt(delta));
 
-    float magnitude = glm::length(grad);
-    max_magnitude = std::max(max_magnitude, magnitude);
-    float angle = std::atan2f(grad.y, grad.x);
+    float magnitude = glm::sqrt(lambda_max);
+    max_magnitude = glm::max(max_magnitude, magnitude);
+
+    constexpr float eps = 1e-12f;
+    float angle = 0.5f * glm::atan(2.0f * b, a - c + eps);
     if (angle < 0.0f) angle += pi;
 
     result[x, y] = std::make_pair(magnitude, angle);
