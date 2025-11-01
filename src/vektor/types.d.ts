@@ -26,6 +26,13 @@ export interface ColorImage extends ClassHandle {
   setPixel(_0: number, _1: number, _2: Vec3f): void;
 }
 
+export interface GradientImage extends ClassHandle {
+  readonly width: number;
+  readonly height: number;
+  getPixel(_0: number, _1: number): Gradient;
+  setPixel(_0: number, _1: number, _2: Gradient): void;
+}
+
 export interface GreyscaleImage extends ClassHandle {
   readonly width: number;
   readonly height: number;
@@ -39,6 +46,11 @@ export interface BinaryImage extends ClassHandle {
   getPixel(_0: number, _1: number): number;
   setPixel(_0: number, _1: number, _2: number): void;
 }
+
+export type Gradient = {
+  mag: number,
+  angle: number
+};
 
 export type Vec3f = {
   r: number,
@@ -65,14 +77,22 @@ interface EmbindModule {
   ColorImage: {
     new(_0: number, _1: number): ColorImage;
   };
+  GradientImage: {
+    new(_0: number, _1: number): GradientImage;
+  };
   GreyscaleImage: {
     new(_0: number, _1: number): GreyscaleImage;
   };
   BinaryImage: {
     new(_0: number, _1: number): BinaryImage;
   };
+  computeGradient(_0: ColorImage): GradientImage;
+  thinEdges(_0: GradientImage): GreyscaleImage;
   traceEdges(_0: BinaryImage): BezierCurveArray;
   renderCurves(_0: number, _1: number, _2: BezierCurveArray): GreyscaleImage;
+  applyAdaptiveBlur(_0: ColorImage, _1: number, _2: number): ColorImage;
+  computeThreshold(_0: GreyscaleImage): number;
+  applyHysteresis(_0: GreyscaleImage, _1: number, _2: number): BinaryImage;
   detectEdges(_0: ColorImage, _1: number): BinaryImage;
 }
 

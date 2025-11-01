@@ -13,10 +13,13 @@
 
 using Image::BinaryImage;
 using Image::ColorImage;
+using Image::GradientImage;
 using Image::GreyscaleImage;
 constexpr auto pi = std::numbers::pi_v<float>;
 
-ColorImage apply_adaptive_blur(const ColorImage& image, float h, int nr_iterations = 1) {
+namespace Canny {
+
+ColorImage apply_adaptive_blur(const ColorImage& image, float h, int nr_iterations) {
   int width = image.width();
   int height = image.height();
 
@@ -49,11 +52,10 @@ ColorImage apply_adaptive_blur(const ColorImage& image, float h, int nr_iteratio
   return result;
 }
 
-using GradientImage_t = Image::Image<std::pair<float, float>>;
-GradientImage_t compute_gradient(const ColorImage& image) {
+GradientImage compute_gradient(const ColorImage& image) {
   int width = image.width();
   int height = image.height();
-  GradientImage_t result { width, height, 1 };
+  GradientImage result { width, height, 1 };
 
   float max_magnitude = 0.0f;
   int inset = 0;
@@ -87,7 +89,7 @@ GradientImage_t compute_gradient(const ColorImage& image) {
   return result;
 }
 
-GreyscaleImage thin_edges(const GradientImage_t& image) {
+GreyscaleImage thin_edges(const GradientImage& image) {
   int width = image.width();
   int height = image.height();
   GreyscaleImage result { width, height, 1 };
@@ -114,10 +116,15 @@ GreyscaleImage thin_edges(const GradientImage_t& image) {
     }
   });
 
+  for (int x = 0; x < result.width(); ++x) {
+    result[x, 0] = result[x, result.height() - 1] = 0.0f;
+  }
+
   return result;
 }
 
-float compute_threshold(const GreyscaleImage& image, int nr_bins = 256) {
+float compute_threshold(const GreyscaleImage& image) {
+  constexpr int nr_bins = 256;
   std::vector<int> bins(nr_bins);
   Image::apply(image.width(), image.height(), [&](int x, int y) {
     int index = static_cast<int>(image[x, y] * (nr_bins - 1));
@@ -239,16 +246,10 @@ BinaryImage apply_hysteresis(const GreyscaleImage& image, float high, float low)
   return result;
 }
 
-namespace Canny {
-
 BinaryImage detect_edges(const ColorImage& source_image, float threshold) {
   auto blurred_image = apply_adaptive_blur(source_image, 1.0f, 1);
   auto gradient_image = compute_gradient(blurred_image);
   auto thinned_image = thin_edges(gradient_image);
-
-  for (int x = 0; x < thinned_image.width(); ++x) {
-    thinned_image[x, 0] = thinned_image[x, thinned_image.height() - 1] = 0.0f;
-  }
 
   float high_threshold = (threshold > 0.0f ? threshold : compute_threshold(thinned_image));
   float low_threshold = high_threshold / 2.0f;

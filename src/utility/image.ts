@@ -3,6 +3,7 @@ import type {
   ColorImage,
   GreyscaleImage,
   BinaryImage,
+  GradientImage,
 } from "@/vektor";
 
 export type ImageData = {
@@ -61,7 +62,7 @@ export function convertImageDataToColorImage(
 }
 
 export function convertColorImageToImageData(
-  image: ColorImage | GreyscaleImage | BinaryImage
+  image: ColorImage | GradientImage | GreyscaleImage | BinaryImage
 ): ImageData {
   const { width, height } = image;
   const data = new Uint8ClampedArray(width * height * 4);
@@ -73,6 +74,8 @@ export function convertColorImageToImageData(
       const pixel = image.getPixel(x, y);
       if (typeof pixel == "number") {
         r = g = b = pixel;
+      } else if ("mag" in pixel) {
+        r = g = b = pixel.mag;
       } else {
         r = pixel.r;
         g = pixel.g;

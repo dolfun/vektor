@@ -19,10 +19,25 @@ export function createStages(
     sourceImageData
   );
 
-  const cannyImage = vektorModule.detectEdges(sourceImage, -1);
-  const cannyImageData = convertColorImageToImageData(cannyImage);
+  const blurredImage = vektorModule.applyAdaptiveBlur(sourceImage, 1.0, 1);
+  const blurredImageData = convertColorImageToImageData(blurredImage);
 
-  const curvesVector = vektorModule.traceEdges(cannyImage);
+  const gradientImage = vektorModule.computeGradient(blurredImage);
+  const gradientImageData = convertColorImageToImageData(gradientImage);
+
+  const thinnedImage = vektorModule.thinEdges(gradientImage);
+  const thinnedImageData = convertColorImageToImageData(thinnedImage);
+
+  const high_threshold = vektorModule.computeThreshold(thinnedImage);
+  const low_threshold = high_threshold / 2;
+  const cannyResultImage = vektorModule.applyHysteresis(
+    thinnedImage,
+    high_threshold,
+    low_threshold
+  );
+  const cannyImageData = convertColorImageToImageData(cannyResultImage);
+
+  const curvesVector = vektorModule.traceEdges(cannyResultImage);
   const curves: BezierCurve[] = Array.from(
     { length: curvesVector.size() },
     (_, i) => curvesVector.get(i)!
@@ -36,14 +51,20 @@ export function createStages(
   const plotImageData = convertColorImageToImageData(plotImage);
 
   const stages: Stage[] = [
-    { imageData: sourceImageData, stageName: "Source" },
+    { imageData: sourceImageData, stageName: "Source Image" },
+    { imageData: blurredImageData, stageName: "Blurred Image" },
+    { imageData: gradientImageData, stageName: "Gradient Image" },
+    { imageData: thinnedImageData, stageName: "Thinned Image" },
     { imageData: cannyImageData, stageName: "Canny Result" },
     { imageData: plotImageData, stageName: "Plot Result" },
   ];
 
   // nasty
   sourceImage.delete();
-  cannyImage.delete();
+  blurredImage.delete();
+  gradientImage.delete();
+  thinnedImage.delete();
+  cannyResultImage.delete();
   curvesVector.delete();
   plotImage.delete();
 

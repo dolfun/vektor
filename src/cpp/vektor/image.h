@@ -44,6 +44,8 @@ private:
 };
 
 using ColorImage = Image<glm::vec3>;
+using Gradient = std::pair<float, float>;
+using GradientImage = Image<Gradient>;
 using GreyscaleImage = Image<float>;
 using BinaryImage = Image<char>;
 
