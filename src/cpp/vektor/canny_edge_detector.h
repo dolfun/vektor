@@ -36,7 +36,8 @@ Image::ColorImage apply_adaptive_blur(const Image::ColorImage&, float, int nr_it
 Image::GradientImage compute_gradient(const Image::ColorImage&);
 Image::GreyscaleImage thin_edges(const Image::GradientImage&);
 float compute_threshold(const Image::GreyscaleImage&);
-Image::BinaryImage apply_hysteresis(const Image::GreyscaleImage&, float, float);
+Image::BinaryImage
+apply_hysteresis(const Image::GreyscaleImage&, float, float, float take_percentile = 0.25f);
 
 Image::BinaryImage detect_edges(const Image::ColorImage&, float threshold = -1.0f);
 

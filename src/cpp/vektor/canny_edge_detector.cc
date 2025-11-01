@@ -92,7 +92,7 @@ GradientImage compute_gradient(const ColorImage& image) {
 GreyscaleImage thin_edges(const GradientImage& image) {
   int width = image.width();
   int height = image.height();
-  GreyscaleImage result { width, height, 1 };
+  GreyscaleImage result { width, height, 2 };
 
   Image::apply(width, height, [&](int x, int y) {
     float angle = image[x, y].second * 180.0f / pi;
@@ -164,7 +164,8 @@ float compute_threshold(const GreyscaleImage& image) {
   return static_cast<float>(maximum_index) / nr_bins;
 }
 
-BinaryImage apply_hysteresis(const GreyscaleImage& image, float high, float low) {
+BinaryImage
+apply_hysteresis(const GreyscaleImage& image, float high, float low, float take_percentile) {
   // clang-format off
   constexpr std::array<std::pair<int, int>, 8> dirs = {{
      { -1, -1, },
@@ -180,7 +181,7 @@ BinaryImage apply_hysteresis(const GreyscaleImage& image, float high, float low)
 
   int width = image.width();
   int height = image.height();
-  Image::Image<unsigned char> visited { width, height, 1 };
+  Image::Image<unsigned char> visited { width, height, image.padding() };
   auto dfs = [&](int x0, int y0, std::vector<glm::ivec2>& points) {
     std::stack<glm::ivec2> s;
     s.push({ x0, y0 });
@@ -235,7 +236,6 @@ BinaryImage apply_hysteresis(const GreyscaleImage& image, float high, float low)
 
   std::ranges::sort(weak_pixels, std::greater<> {}, [&](const auto& v) { return v.size(); });
 
-  constexpr float take_percentile = 0.25f;
   const int take_amount = static_cast<int>(weak_pixels.size() * take_percentile);
   for (const auto& v : std::views::take(weak_pixels, take_amount)) {
     for (auto p : v) {

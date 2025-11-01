@@ -92,7 +92,7 @@ interface EmbindModule {
   renderCurves(_0: number, _1: number, _2: BezierCurveArray): GreyscaleImage;
   applyAdaptiveBlur(_0: ColorImage, _1: number, _2: number): ColorImage;
   computeThreshold(_0: GreyscaleImage): number;
-  applyHysteresis(_0: GreyscaleImage, _1: number, _2: number): BinaryImage;
+  applyHysteresis(_0: GreyscaleImage, _1: number, _2: number, _3: number): BinaryImage;
   detectEdges(_0: ColorImage, _1: number): BinaryImage;
 }
 

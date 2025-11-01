@@ -77,7 +77,7 @@ export function MultiStageCanvas({ stages }: { stages: Stage[] }) {
     setTy(cy);
   }, [stage]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     refreshOffscreen();
     fitAndCenter();
   }, [stage, refreshOffscreen, fitAndCenter]);
@@ -90,7 +90,7 @@ export function MultiStageCanvas({ stages }: { stages: Stage[] }) {
     return () => ro.disconnect();
   }, [fitAndCenter]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const wrap = wrapRef.current,
       canvas = canvasRef.current,
       off = offscreenRef.current;
