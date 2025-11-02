@@ -47,19 +47,20 @@ ColorImage apply_adaptive_blur(const ColorImage& image, float h, int nr_iteratio
     ColorImage source = std::move(result);
     result = ColorImage { width, height, Canny::gradient_x_kernel.size() / 2 };
 
-    ColorImage weights { width, height, 1 };
+    GreyscaleImage weights { width, height, 1 };
     Image::apply(width, height, [&](int x, int y) {
-      auto grad_x = Image::evaluate_kernel<glm::vec3>(Canny::gradient_x_kernel, source, x, y);
-      auto grad_y = Image::evaluate_kernel<glm::vec3>(Canny::gradient_y_kernel, source, x, y);
-      weights[x, y] =
-        glm::exp(-glm::sqrt(glm::sqrt(grad_x * grad_x + grad_y * grad_y)) / (2.0f * h * h));
+      auto gx = Image::evaluate_kernel<glm::vec3>(Canny::gradient_x_kernel, source, x, y);
+      auto gy = Image::evaluate_kernel<glm::vec3>(Canny::gradient_y_kernel, source, x, y);
+      float g2 = glm::dot(gx, gx) + glm::dot(gy, gy);
+      float w = std::exp(-std::sqrt(std::sqrt(g2)) / (2.0f * h * h));
+      weights[x, y] = w;
     });
 
     Image::apply(width, height, [&](int x, int y) {
-      glm::vec3 weight_sum { 0.0f };
+      float weight_sum = 0.0f;
       for (int j = -1; j <= 1; ++j) {
         for (int i = -1; i <= 1; ++i) {
-          glm::vec3 weight = weights[x + i, y + j];
+          float weight = weights[x + i, y + j];
           result[x, y] += source[x + i, y + j] * weight;
           weight_sum += weight;
         }
@@ -158,26 +159,26 @@ float compute_threshold(const GreyscaleImage& image) {
     std::multiplies<float> {}
   );
 
-  float maximum = 0.0f;
-  int maximum_index;
-  float w_0 = 0.0f, mu_0 = 0.0f;
+  float w0 = 0.0f, mu0_sum = 0.0f;
+  float best = -1.0f;
+  int best_i = 0;
+
   for (int i = 0; i < nr_bins; ++i) {
-    float w_1 = w_t - w_0;
-    if (w_0 > 0.0f && w_1 > 0.0f) {
-      float mu_1 = (mu_t - mu_0) / w_1;
-      float val = w_0 * w_1 * (mu_1 / w_1 - mu_0) * (mu_1 / w_1 - mu_0);
-      if (val > maximum) {
-        maximum = val;
-        maximum_index = i;
+    float w1 = w_t - w0;
+    if (w0 > 0.0f && w1 > 0.0f) {
+      float mu0 = mu0_sum / w0;
+      float mu1 = (mu_t - mu0_sum) / w1;
+      float between = w0 * w1 * (mu0 - mu1) * (mu0 - mu1);
+      if (between > best) {
+        best = between;
+        best_i = i;
       }
     }
-
     float count = static_cast<float>(bins[i]);
-    w_0 += count;
-    mu_0 += i * count;
+    w0 += count;
+    mu0_sum += i * count;
   }
-
-  return static_cast<float>(maximum_index) / nr_bins;
+  return static_cast<float>(best_i) / (nr_bins - 1);
 }
 
 BinaryImage
