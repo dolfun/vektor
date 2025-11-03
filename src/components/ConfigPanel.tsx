@@ -45,12 +45,6 @@ export function ConfigPanel({
     { value: 4, label: "4x" },
   ];
 
-  const quantizationValues = [4, 8, 16, 64, 256];
-  const quantizationMarks = quantizationValues.map((v, i) => ({
-    value: i + 1,
-    label: String(v),
-  }));
-
   const handleReset = () => {
     setStageParams(defaultStageParams);
   };
@@ -74,59 +68,10 @@ export function ConfigPanel({
 
         <Accordion disableGutters>
           <AccordionSummary expandIcon={<span>▾</span>}>
-            <Typography variant="body1">Quantization</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <Stack spacing={2} sx={{ px: 1 }}>
-              <Box>
-                <Typography variant="subtitle2" gutterBottom>
-                  # Quantization Bins
-                </Typography>
-                <Slider
-                  value={
-                    quantizationValues.indexOf(stageParams.nrQuantizationBins) +
-                    1
-                  }
-                  onChange={(_, v) => {
-                    const idx = Math.round(v as number) - 1;
-                    handleParamChange("nrQuantizationBins")(
-                      _,
-                      quantizationValues[idx]
-                    );
-                  }}
-                  min={1}
-                  max={quantizationValues.length}
-                  step={1}
-                  marks={quantizationMarks}
-                  valueLabelDisplay="auto"
-                  valueLabelFormat={(v) => quantizationValues[v - 1]}
-                  aria-label="Number of Quantization Bins"
-                />
-              </Box>
-            </Stack>
-          </AccordionDetails>
-        </Accordion>
-
-        <Accordion disableGutters>
-          <AccordionSummary expandIcon={<span>▾</span>}>
             <Typography variant="body1">Blur Stage</Typography>
           </AccordionSummary>
           <AccordionDetails>
             <Stack spacing={2} sx={{ px: 1 }}>
-              <Box>
-                <Typography variant="subtitle2" gutterBottom>
-                  Blur Factor
-                </Typography>
-                <Slider
-                  value={stageParams.blurFactor}
-                  onChange={handleParamChange("blurFactor")}
-                  min={0}
-                  max={2}
-                  step={0.01}
-                  valueLabelDisplay="auto"
-                  aria-label="Blur Factor"
-                />
-              </Box>
               <Box>
                 <Typography variant="subtitle2" gutterBottom>
                   # Iterations
@@ -156,20 +101,6 @@ export function ConfigPanel({
           </AccordionSummary>
           <AccordionDetails>
             <Stack spacing={2} sx={{ px: 1 }}>
-              <Box>
-                <Typography variant="subtitle2" gutterBottom>
-                  Low Threshold Ratio
-                </Typography>
-                <Slider
-                  value={stageParams.lowThresholdRatio}
-                  onChange={handleParamChange("lowThresholdRatio")}
-                  min={0.1}
-                  max={1}
-                  step={0.01}
-                  valueLabelDisplay="auto"
-                  aria-label="Low Threshold Ratio"
-                />
-              </Box>
               <Box>
                 <Typography variant="subtitle2" gutterBottom>
                   Take Percentile

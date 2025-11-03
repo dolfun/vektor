@@ -74,8 +74,8 @@ export function convertColorImageToImageData(
       const pixel = image.getPixel(x, y);
       if (typeof pixel == "number") {
         r = g = b = pixel;
-      } else if ("mag" in pixel) {
-        r = g = b = pixel.mag;
+      } else if ("first" in pixel) {
+        r = g = b = pixel.first;
       } else {
         r = pixel.r;
         g = pixel.g;

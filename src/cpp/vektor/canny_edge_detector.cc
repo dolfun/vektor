@@ -1,13 +1,10 @@
 #include "canny_edge_detector.h"
 
 #include <algorithm>
-#include <cassert>
 #include <glm/glm.hpp>
 #include <numbers>
-#include <numeric>
 #include <ranges>
 #include <stack>
-#include <utility>
 
 #include "image.h"
 
@@ -18,25 +15,6 @@ using Image::GreyscaleImage;
 constexpr auto pi = std::numbers::pi_v<float>;
 
 namespace Canny {
-
-ColorImage quantize_image(const ColorImage& image, int nr_bins) {
-  int width = image.width();
-  int height = image.height();
-
-  if (nr_bins >= MAX_BINS) {
-    return image;
-  }
-
-  ColorImage result { image.width(), image.height(), image.padding() };
-  Image::apply(width, height, [&](int x, int y) {
-    for (int k = 0; k < 3; ++k) {
-      float val = image[x, y][k];
-      result[x, y][k] = glm::round(val * (nr_bins - 1)) / (nr_bins - 1);
-    }
-  });
-
-  return result;
-}
 
 ColorImage apply_adaptive_blur(const ColorImage& image, float h, int nr_iterations) {
   int width = image.width();
@@ -140,49 +118,60 @@ GreyscaleImage thin_edges(const GradientImage& image) {
   return result;
 }
 
-float compute_threshold(const GreyscaleImage& image) {
-  constexpr int nr_bins = 256;
-  std::vector<int> bins(nr_bins);
+// https://www.nature.com/articles/s41598-025-86860-9
+std::pair<float, float> compute_threshold(const GreyscaleImage& image, int nr_bins) {
+  std::vector<int> bins(nr_bins + 1);
   Image::apply(image.width(), image.height(), [&](int x, int y) {
-    int index = static_cast<int>(image[x, y] * (nr_bins - 1));
-    ++bins[index];
+    int idx = std::min(nr_bins, 1 + static_cast<int>(image[x, y] * nr_bins));
+    ++bins[idx];
   });
 
-  float w_t = static_cast<float>(image.width() * image.height());
-  auto indices = std::views::iota(0);
-  float mu_t = std::inner_product(
-    bins.begin(),
-    bins.end(),
-    indices.begin(),
-    0.0f,
-    std::plus<> {},
-    std::multiplies<float> {}
-  );
+  int nr_pixels = image.width() * image.height();
+  std::vector<std::pair<double, double>> pref_sums(nr_bins + 1);
+  for (int i = 1; i <= nr_bins; ++i) {
+    auto [sum, sum_i] = pref_sums[i - 1];
+    auto p = static_cast<double>(bins[i]) / nr_pixels;
+    pref_sums[i] = { sum + p, sum_i + p * i };
+  }
 
-  float w0 = 0.0f, mu0_sum = 0.0f;
-  float best = -1.0f;
-  int best_i = 0;
+  const double u = pref_sums[nr_bins].second;
 
-  for (int i = 0; i < nr_bins; ++i) {
-    float w1 = w_t - w0;
-    if (w0 > 0.0f && w1 > 0.0f) {
-      float mu0 = mu0_sum / w0;
-      float mu1 = (mu_t - mu0_sum) / w1;
-      float between = w0 * w1 * (mu0 - mu1) * (mu0 - mu1);
-      if (between > best) {
-        best = between;
-        best_i = i;
+  auto compute_inter_class_variance = [&](int tl, int th) {
+    double w1 = pref_sums[tl].first;
+    double w2 = pref_sums[th].first - pref_sums[tl].first;
+    double w3 = pref_sums[nr_bins].first - pref_sums[th].first;
+
+    if (w1 == 0.0 || w2 == 0.0 || w3 == 0.0) {
+      return -1.0;
+    }
+
+    double p1 = pref_sums[tl].second / w1;
+    double p2 = (pref_sums[th].second - pref_sums[tl].second) / w2;
+    double p3 = (pref_sums[nr_bins].second - pref_sums[th].second) / w3;
+
+    double var = w1 * (p1 - u) * (p1 - u) + w2 * (p2 - u) * (p2 - u) + w3 * (p3 - u) * (p3 - u);
+    return var;
+  };
+
+  double max_var = 0.0;
+  int best_tl, best_th;
+  for (int tl = 1; tl < nr_bins - 1; ++tl) {
+    for (int th = tl + 1; th < nr_bins; ++th) {
+      double var = compute_inter_class_variance(tl, th);
+
+      if (var > max_var) {
+        max_var = var;
+        best_tl = tl;
+        best_th = th;
       }
     }
-    float count = static_cast<float>(bins[i]);
-    w0 += count;
-    mu0_sum += i * count;
   }
-  return static_cast<float>(best_i) / (nr_bins - 1);
+
+  return { best_tl / static_cast<float>(nr_bins), best_th / static_cast<float>(nr_bins) };
 }
 
 BinaryImage
-apply_hysteresis(const GreyscaleImage& image, float high, float low, float take_percentile) {
+apply_hysteresis(const GreyscaleImage& image, float low, float high, float take_percentile) {
   // clang-format off
   constexpr std::array<std::pair<int, int>, 8> dirs = {{
      { -1, -1, },
@@ -263,14 +252,12 @@ apply_hysteresis(const GreyscaleImage& image, float high, float low, float take_
   return result;
 }
 
-BinaryImage detect_edges(const ColorImage& source_image, float threshold) {
+BinaryImage detect_edges(const ColorImage& source_image) {
   auto blurred_image = apply_adaptive_blur(source_image, 1.0f, 1);
   auto gradient_image = compute_gradient(blurred_image);
   auto thinned_image = thin_edges(gradient_image);
-
-  float high_threshold = (threshold > 0.0f ? threshold : compute_threshold(thinned_image));
-  float low_threshold = high_threshold / 2.0f;
-  auto final_image = apply_hysteresis(thinned_image, high_threshold, low_threshold);
+  auto [tl, th] = compute_threshold(thinned_image);
+  auto final_image = apply_hysteresis(thinned_image, tl, th);
   return final_image;
 }
 

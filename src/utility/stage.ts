@@ -6,19 +6,13 @@ import type { ImageData } from "./image";
 import type { VektorModule, BezierCurve } from "@/vektor";
 
 export type StagesParams = {
-  nrQuantizationBins: number;
-  blurFactor: number;
   nrIterations: number;
-  lowThresholdRatio: number;
   takePercentile: number;
   plotScale: number;
 };
 
 export const defaultStageParams: StagesParams = {
-  nrQuantizationBins: 256,
-  blurFactor: 1.0,
   nrIterations: 1,
-  lowThresholdRatio: 0.25,
   takePercentile: 0.25,
   plotScale: 2,
 };
@@ -44,14 +38,11 @@ export function createStages(
       convertImageDataToColorImage(vektorModule, sourceImageData)
     );
 
-    const quantizedImage = track(
-      vektorModule.quantizeImage(sourceImage, stageParams.nrQuantizationBins)
-    );
-
+    const blurFactor = 1.0;
     const blurredImage = track(
       vektorModule.applyAdaptiveBlur(
-        quantizedImage,
-        stageParams.blurFactor,
+        sourceImage,
+        blurFactor,
         stageParams.nrIterations
       )
     );
@@ -60,14 +51,12 @@ export function createStages(
 
     const thinnedImage = track(vektorModule.thinEdges(gradientImage));
 
-    const high_threshold = vektorModule.computeThreshold(thinnedImage);
-    const low_threshold = high_threshold * stageParams.lowThresholdRatio;
-
+    const threshold = vektorModule.computeThreshold(thinnedImage, 256);
     const cannyResultImage = track(
       vektorModule.applyHysteresis(
         thinnedImage,
-        high_threshold,
-        low_threshold,
+        threshold.first,
+        threshold.second,
         stageParams.takePercentile
       )
     );
@@ -82,7 +71,6 @@ export function createStages(
       )
     );
 
-    const quantizedImageData = convertColorImageToImageData(quantizedImage);
     const blurredImageData = convertColorImageToImageData(blurredImage);
     const gradientImageData = convertColorImageToImageData(gradientImage);
     const thinnedImageData = convertColorImageToImageData(thinnedImage);
@@ -96,7 +84,6 @@ export function createStages(
 
     const stages: Stage[] = [
       { imageData: sourceImageData, stageName: "Source Image" },
-      { imageData: quantizedImageData, stageName: "Quantized Image" },
       { imageData: blurredImageData, stageName: "Blurred Image" },
       { imageData: gradientImageData, stageName: "Gradient Image" },
       { imageData: thinnedImageData, stageName: "Thinned Image" },

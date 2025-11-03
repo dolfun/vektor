@@ -29,8 +29,8 @@ export interface ColorImage extends ClassHandle {
 export interface GradientImage extends ClassHandle {
   readonly width: number;
   readonly height: number;
-  getPixel(_0: number, _1: number): Gradient;
-  setPixel(_0: number, _1: number, _2: Gradient): void;
+  getPixel(_0: number, _1: number): NumberPair;
+  setPixel(_0: number, _1: number, _2: NumberPair): void;
 }
 
 export interface GreyscaleImage extends ClassHandle {
@@ -47,9 +47,9 @@ export interface BinaryImage extends ClassHandle {
   setPixel(_0: number, _1: number, _2: number): void;
 }
 
-export type Gradient = {
-  mag: number,
-  angle: number
+export type NumberPair = {
+  first: number,
+  second: number
 };
 
 export type Vec3f = {
@@ -89,12 +89,10 @@ interface EmbindModule {
   computeGradient(_0: ColorImage): GradientImage;
   thinEdges(_0: GradientImage): GreyscaleImage;
   traceEdges(_0: BinaryImage): BezierCurveArray;
-  quantizeImage(_0: ColorImage, _1: number): ColorImage;
   renderCurves(_0: number, _1: number, _2: BezierCurveArray): GreyscaleImage;
+  computeThreshold(_0: GreyscaleImage, _1: number): NumberPair;
   applyAdaptiveBlur(_0: ColorImage, _1: number, _2: number): ColorImage;
-  computeThreshold(_0: GreyscaleImage): number;
   applyHysteresis(_0: GreyscaleImage, _1: number, _2: number, _3: number): BinaryImage;
-  detectEdges(_0: ColorImage, _1: number): BinaryImage;
 }
 
 export type MainModule = WasmModule & EmbindModule;
