@@ -6,6 +6,7 @@ import type { ImageData } from "./image";
 import type { VektorModule, BezierCurve, Vec3f } from "@/vektor";
 
 export type StagesParams = {
+  kernelSize: number;
   nrIterations: number;
   takePercentile: number;
   plotScale: number;
@@ -14,6 +15,7 @@ export type StagesParams = {
 };
 
 export const defaultStageParams: StagesParams = {
+  kernelSize: 1,
   nrIterations: 1,
   takePercentile: 0.25,
   plotScale: 1,
@@ -47,6 +49,7 @@ export function createStages(
       vektorModule.applyAdaptiveBlur(
         sourceImage,
         blurFactor,
+        stageParams.kernelSize,
         stageParams.nrIterations
       )
     );

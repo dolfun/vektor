@@ -16,7 +16,8 @@ constexpr auto pi = std::numbers::pi_v<float>;
 
 namespace Canny {
 
-ColorImage apply_adaptive_blur(const ColorImage& image, float h, int nr_iterations) {
+ColorImage
+apply_adaptive_blur(const ColorImage& image, float h, int kernel_size, int nr_iterations) {
   int width = image.width();
   int height = image.height();
 
@@ -36,8 +37,8 @@ ColorImage apply_adaptive_blur(const ColorImage& image, float h, int nr_iteratio
 
     Image::apply(width, height, [&](int x, int y) {
       float weight_sum = 0.0f;
-      for (int j = -1; j <= 1; ++j) {
-        for (int i = -1; i <= 1; ++i) {
+      for (int j = -kernel_size; j <= kernel_size; ++j) {
+        for (int i = -kernel_size; i <= kernel_size; ++i) {
           float weight = weights[x + i, y + j];
           result[x, y] += source[x + i, y + j] * weight;
           weight_sum += weight;
@@ -254,7 +255,7 @@ apply_hysteresis(const GreyscaleImage& image, float low, float high, float take_
 }
 
 BinaryImage detect_edges(const ColorImage& source_image) {
-  auto blurred_image = apply_adaptive_blur(source_image, 1.0f, 1);
+  auto blurred_image = apply_adaptive_blur(source_image);
   auto gradient_image = compute_gradient(blurred_image);
   auto thinned_image = thin_edges(gradient_image);
   auto [tl, th] = compute_threshold(thinned_image);

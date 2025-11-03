@@ -70,10 +70,27 @@ export function ConfigPanel({
 
         <Accordion disableGutters>
           <AccordionSummary expandIcon={<span>▾</span>}>
-            <Typography variant="body1">Blur Stage</Typography>
+            <Typography variant="body1">Denoising</Typography>
           </AccordionSummary>
           <AccordionDetails>
             <Stack spacing={2} sx={{ px: 1 }}>
+              <Box>
+                <Typography variant="subtitle2" gutterBottom>
+                  Kernel Size
+                </Typography>
+                <Slider
+                  value={stageParams.kernelSize}
+                  onChange={(_, v) =>
+                    handleParamChange("kernelSize")(_, Math.round(v as number))
+                  }
+                  min={1}
+                  max={3}
+                  step={1}
+                  valueLabelDisplay="auto"
+                  aria-label="Kernel Size"
+                />
+              </Box>
+
               <Box>
                 <Typography variant="subtitle2" gutterBottom>
                   # Iterations
@@ -87,7 +104,7 @@ export function ConfigPanel({
                     )
                   }
                   min={1}
-                  max={5}
+                  max={4}
                   step={1}
                   valueLabelDisplay="auto"
                   aria-label="Number of Iterations"
@@ -99,7 +116,7 @@ export function ConfigPanel({
 
         <Accordion disableGutters>
           <AccordionSummary expandIcon={<span>▾</span>}>
-            <Typography variant="body1">Hysteresis Stage</Typography>
+            <Typography variant="body1">Hysteresis</Typography>
           </AccordionSummary>
           <AccordionDetails>
             <Stack spacing={2} sx={{ px: 1 }}>
@@ -123,7 +140,7 @@ export function ConfigPanel({
 
         <Accordion disableGutters>
           <AccordionSummary expandIcon={<span>▾</span>}>
-            <Typography variant="body1">Final Result</Typography>
+            <Typography variant="body1">Plotting</Typography>
           </AccordionSummary>
           <AccordionDetails>
             <Stack spacing={2} sx={{ px: 1 }}>
