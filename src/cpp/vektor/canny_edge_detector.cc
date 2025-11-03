@@ -56,7 +56,7 @@ GradientImage compute_gradient(const ColorImage& image) {
   GradientImage result { width, height, 1 };
 
   float max_magnitude = 0.0f;
-  int inset = 0;
+  const int inset = 1;
   Image::apply_with_inset(width, height, inset, inset, [&](int x, int y) {
     auto gx = Image::evaluate_kernel<glm::vec3>(Canny::gradient_x_kernel, image, x, y);
     auto gy = Image::evaluate_kernel<glm::vec3>(Canny::gradient_y_kernel, image, x, y);
