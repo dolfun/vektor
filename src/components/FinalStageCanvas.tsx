@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { Paper } from "@mui/material";
-import type { Vec2f, BezierCurve } from "@/vektor";
+import type { Vec2f, BezierCurve, Vec3f } from "@/vektor";
 
 type Bounds = {
   left: number;
@@ -39,7 +39,12 @@ function adjustBoundsForAspect({
   }
 }
 
-function plotCurves(calculator: Desmos.Calculator, curves: BezierCurve[]) {
+function plotCurves(
+  calculator: Desmos.Calculator,
+  curves: BezierCurve[],
+  desmosColor: "solid" | "auto",
+  invertedColors: boolean
+) {
   const INF = 1e6;
   const bounds: Bounds = { left: INF, right: -INF, top: -INF, bottom: INF };
   const updateBounds = (p: Vec2f) => {
@@ -58,9 +63,21 @@ function plotCurves(calculator: Desmos.Calculator, curves: BezierCurve[]) {
           -(${p0.y}*(1-t)^3 + 3*${p1.y}*(1-t)^2*t + 3*${p2.y}*(1-t)*t^2 + ${p3.y}*t^3)
         )`;
 
+    const toByte = (x: number) =>
+      Math.max(
+        0,
+        Math.min(255, Math.round((invertedColors ? 1.0 - x : x) * 255))
+      );
+
+    const { r, g, b } =
+      desmosColor === "solid" ? { r: 0.78, g: 0.26, b: 0.25 } : curve.color;
+    const rr = toByte(r).toString(16).padStart(2, "0");
+    const gg = toByte(g).toString(16).padStart(2, "0");
+    const bb = toByte(b).toString(16).padStart(2, "0");
+
     calculator.setExpression({
       latex,
-      color: Desmos.Colors.RED,
+      color: `#${rr}${gg}${bb}`.toUpperCase(),
     });
   }
 
@@ -72,7 +89,15 @@ function plotCurves(calculator: Desmos.Calculator, curves: BezierCurve[]) {
   calculator.setMathBounds(bounds);
 }
 
-export function FinalStageCanvas({ curves }: { curves: BezierCurve[] | null }) {
+export function FinalStageCanvas({
+  curves,
+  desmosColor,
+  invertedColors,
+}: {
+  curves: BezierCurve[] | null;
+  desmosColor: "solid" | "auto";
+  invertedColors: boolean;
+}) {
   const paperRef = useRef<HTMLDivElement | null>(null);
   const calculatorRef = useRef<Desmos.Calculator | null>(null);
 
@@ -84,6 +109,8 @@ export function FinalStageCanvas({ curves }: { curves: BezierCurve[] | null }) {
       expressions: false,
       settingsMenu: false,
       zoomButtons: false,
+      lockViewport: true,
+      invertedColors,
     });
 
     calculatorRef.current.updateSettings({
@@ -93,7 +120,7 @@ export function FinalStageCanvas({ curves }: { curves: BezierCurve[] | null }) {
     });
 
     if (curves) {
-      plotCurves(calculatorRef.current, curves);
+      plotCurves(calculatorRef.current, curves, desmosColor, invertedColors);
     }
 
     return () => calculatorRef.current?.destroy();

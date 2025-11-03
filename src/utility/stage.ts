@@ -3,18 +3,22 @@ import {
   convertColorImageToImageData,
 } from "./image";
 import type { ImageData } from "./image";
-import type { VektorModule, BezierCurve } from "@/vektor";
+import type { VektorModule, BezierCurve, Vec3f } from "@/vektor";
 
 export type StagesParams = {
   nrIterations: number;
   takePercentile: number;
   plotScale: number;
+  backgroundColor: "black" | "white";
+  desmosColor: "solid" | "auto";
 };
 
 export const defaultStageParams: StagesParams = {
   nrIterations: 1,
   takePercentile: 0.25,
-  plotScale: 2,
+  plotScale: 1,
+  backgroundColor: "black",
+  desmosColor: "auto",
 };
 
 export type Stage = {
@@ -63,11 +67,28 @@ export function createStages(
 
     const curvesVector = track(vektorModule.traceEdges(cannyResultImage));
 
-    const plotImage = track(
-      vektorModule.renderCurves(
+    const greyscaleImageBackground =
+      stageParams.backgroundColor === "black" ? 0.0 : 1.0;
+    const greyscalePlotImage = track(
+      vektorModule.renderCurvesGreyscale(
         sourceImageData.width * stageParams.plotScale,
         sourceImageData.height * stageParams.plotScale,
-        curvesVector
+        curvesVector,
+        greyscaleImageBackground
+      )
+    );
+
+    const colorImageBackground: Vec3f =
+      stageParams.backgroundColor === "black"
+        ? { r: 0, g: 0, b: 0 }
+        : { r: 1, g: 1, b: 1 };
+    const colorPlotImage = track(
+      vektorModule.renderCurvesColor(
+        sourceImageData.width * stageParams.plotScale,
+        sourceImageData.height * stageParams.plotScale,
+        curvesVector,
+        sourceImage,
+        colorImageBackground
       )
     );
 
@@ -75,11 +96,19 @@ export function createStages(
     const gradientImageData = convertColorImageToImageData(gradientImage);
     const thinnedImageData = convertColorImageToImageData(thinnedImage);
     const cannyImageData = convertColorImageToImageData(cannyResultImage);
-    const plotImageData = convertColorImageToImageData(plotImage);
+    const greyscalePlotImageData =
+      convertColorImageToImageData(greyscalePlotImage);
+    const colorPlotImageData = convertColorImageToImageData(colorPlotImage);
 
     const curves: BezierCurve[] = Array.from(
       { length: curvesVector.size() },
-      (_, i) => curvesVector.get(i)!
+      (_, i) => {
+        const curve = curvesVector.get(i)!;
+        return {
+          ...curve,
+          color: vektorModule.computeCurveColor(curve, sourceImage),
+        };
+      }
     );
 
     const stages: Stage[] = [
@@ -88,7 +117,8 @@ export function createStages(
       { imageData: gradientImageData, stageName: "Gradient Image" },
       { imageData: thinnedImageData, stageName: "Thinned Image" },
       { imageData: cannyImageData, stageName: "Canny Result" },
-      { imageData: plotImageData, stageName: "Plot Result" },
+      { imageData: greyscalePlotImageData, stageName: "Greyscale Plot" },
+      { imageData: colorPlotImageData, stageName: "Color Plot" },
     ];
 
     return { stages, curves };

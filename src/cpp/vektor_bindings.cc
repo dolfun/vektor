@@ -63,5 +63,18 @@ EMSCRIPTEN_BINDINGS(my_module) {
   function("applyHysteresis", &Canny::apply_hysteresis, return_value_policy::take_ownership());
 
   function("traceEdges", &Tracer::trace, return_value_policy::take_ownership());
-  function("renderCurves", &Renderer::render_greyscale, return_value_policy::take_ownership());
+
+  function(
+    "renderCurvesGreyscale",
+    &Renderer::render_greyscale,
+    return_value_policy::take_ownership()
+  );
+
+  function(
+    "computeCurveColor",
+    &Renderer::compute_curve_color,
+    return_value_policy::take_ownership()
+  );
+
+  function("renderCurvesColor", &Renderer::render_color, return_value_policy::take_ownership());
 }

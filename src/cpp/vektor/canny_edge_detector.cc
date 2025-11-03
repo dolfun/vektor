@@ -198,8 +198,9 @@ apply_hysteresis(const GreyscaleImage& image, float low, float high, float take_
       auto p = s.top();
       s.pop();
 
-      points.push_back(p);
+      if (visited[p.x, p.y]) continue;
       visited[p.x, p.y] = true;
+      points.push_back(p);
 
       for (auto [dx, dy] : dirs) {
         glm::ivec2 p1 = p + glm::ivec2(dx, dy);

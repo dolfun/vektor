@@ -11,6 +11,8 @@ import {
   Slider,
   Stack,
   Typography,
+  Radio,
+  RadioGroup,
 } from "@mui/material";
 import React from "react";
 import type { StagesParams } from "@/utility";
@@ -125,28 +127,6 @@ export function ConfigPanel({
           </AccordionSummary>
           <AccordionDetails>
             <Stack spacing={2} sx={{ px: 1 }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={showFinal}
-                      onChange={(e) => onToggleFinal(e.target.checked)}
-                    />
-                  }
-                  label={
-                    <Typography variant="subtitle2">
-                      Show Desmos Plot
-                    </Typography>
-                  }
-                />
-              </Box>
-
               <Box>
                 <Typography variant="subtitle2" gutterBottom>
                   Plot Scale
@@ -162,6 +142,89 @@ export function ConfigPanel({
                   marks={marksPlotScale}
                   valueLabelDisplay="auto"
                   aria-label="Plot Scale"
+                />
+              </Box>
+
+              <Box>
+                <Typography variant="subtitle2" gutterBottom>
+                  Background Color
+                </Typography>
+                <RadioGroup
+                  row
+                  aria-label="Background Color"
+                  name="background-color"
+                  value={stageParams.backgroundColor}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setStageParams((prev) => ({
+                      ...prev,
+                      backgroundColor: e.target
+                        .value as StagesParams["backgroundColor"],
+                    }))
+                  }
+                >
+                  <FormControlLabel
+                    value="black"
+                    control={<Radio />}
+                    label="Black"
+                  />
+                  <FormControlLabel
+                    value="white"
+                    control={<Radio />}
+                    label="White"
+                  />
+                </RadioGroup>
+              </Box>
+
+              <Box>
+                <Typography variant="subtitle2" gutterBottom>
+                  Desmos Color
+                </Typography>
+                <RadioGroup
+                  row
+                  aria-label="Desmos Color"
+                  name="desmos-color"
+                  value={stageParams.desmosColor}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setStageParams((prev) => ({
+                      ...prev,
+                      desmosColor: e.target
+                        .value as StagesParams["desmosColor"],
+                    }))
+                  }
+                >
+                  <FormControlLabel
+                    value="auto"
+                    control={<Radio />}
+                    label="Colorful"
+                  />
+                  <FormControlLabel
+                    value="solid"
+                    control={<Radio />}
+                    label="Solid"
+                  />
+                </RadioGroup>
+              </Box>
+
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  pt: 1,
+                }}
+              >
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={showFinal}
+                      onChange={(e) => onToggleFinal(e.target.checked)}
+                    />
+                  }
+                  label={
+                    <Typography variant="subtitle2">
+                      Show Desmos Plot
+                    </Typography>
+                  }
                 />
               </Box>
             </Stack>

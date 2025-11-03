@@ -94,45 +94,60 @@ void draw_curve(const BezierCurve& curve, auto&& f) {
 
 namespace Renderer {
 
-auto render_greyscale(int width, int height, const std::vector<BezierCurve>& curves)
-  -> Image::GreyscaleImage {
+auto render_greyscale(
+  int width,
+  int height,
+  const std::vector<BezierCurve>& curves,
+  float background_value
+) -> Image::GreyscaleImage {
   Image::GreyscaleImage result { width, height };
+  Image::apply(width, height, [&](int x, int y) { result[x, y] = background_value; });
+
   for (auto curve : curves) {
     curve.apply_scale(width);
 
     draw_curve(curve, [&](float x, float y, float c) {
       x = glm::round(x), y = glm::round(y);
-      result[x, y] = glm::mix(result[x, y], 1.0f, c);
+      result[x, y] = glm::mix(result[x, y], 1.0f - background_value, c);
     });
   }
 
   return result;
 }
 
+glm::vec3 compute_curve_color(const BezierCurve& curve, const Image::ColorImage& image) {
+  auto upscaled_curve = curve;
+  upscaled_curve.apply_scale(image.width());
+
+  glm::vec3 path_color {};
+  float weight_sum = 0.0f;
+  draw_curve(upscaled_curve, [&](float x, float y, float c) {
+    x = glm::round(x), y = glm::round(y);
+    path_color += image[x, y] * c;
+    weight_sum += c;
+  });
+  path_color /= weight_sum;
+
+  return path_color;
+}
+
 auto render_color(
   int width,
   int height,
   const std::vector<BezierCurve>& curves,
-  const Image::ColorImage& color_image
+  const Image::ColorImage& color_image,
+  glm::vec3 background_color
 ) -> Image::ColorImage {
   Image::ColorImage result { width, height };
-  for (auto curve : curves) {
-    auto curve_for_color = curve;
-    curve_for_color.apply_scale(color_image.width());
+  Image::apply(width, height, [&](int x, int y) { result[x, y] = background_color; });
 
-    glm::vec3 path_color {};
-    float weight_sum = 0.0f;
-    draw_curve(curve_for_color, [&](float x, float y, float c) {
-      x = glm::round(x), y = glm::round(y);
-      path_color += color_image[x, y] * c;
-      weight_sum += c;
-    });
-    path_color /= weight_sum;
+  for (auto curve : curves) {
+    auto curve_color = compute_curve_color(curve, color_image);
 
     curve.apply_scale(width);
     draw_curve(curve, [&](float x, float y, float c) {
       x = glm::round(x), y = glm::round(y);
-      result[x, y] = glm::mix(result[x, y], path_color, c);
+      result[x, y] = glm::mix(result[x, y], curve_color, c);
     });
   }
 

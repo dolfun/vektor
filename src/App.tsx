@@ -87,7 +87,11 @@ export default function App({ vektorModule }: { vektorModule: VektorModule }) {
             }}
           >
             {showFinal ? (
-              <FinalStageCanvas curves={resultState.curves} />
+              <FinalStageCanvas
+                curves={resultState.curves}
+                desmosColor={stageParams.desmosColor}
+                invertedColors={stageParams.backgroundColor === "black"}
+              />
             ) : (
               <MultiStageCanvas stages={resultState.stages} />
             )}
