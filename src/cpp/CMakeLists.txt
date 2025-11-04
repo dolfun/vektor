@@ -11,12 +11,13 @@ if (EMSCRIPTEN)
   set(vektor_tsd_file "${CMAKE_SOURCE_DIR}/src/vektor/types.d.ts")
   target_link_options(vektor PRIVATE
     "SHELL:-lembind"
+    "SHELL:-msimd128"
     "SHELL:-sSTACK_SIZE=16777216"
     "SHELL:-sMODULARIZE=1"
     "SHELL:-sEXPORT_ES6=1"
     "SHELL:-sENVIRONMENT=web"
-    "SHELL:--emit-tsd=${vektor_tsd_file}"
     "SHELL:-sALLOW_MEMORY_GROWTH=1"
+    "SHELL:--emit-tsd=${vektor_tsd_file}"
 
     "$<$<CONFIG:Debug>:SHELL:-O0>"
     "$<$<CONFIG:Release>:SHELL:-O3 -flto>"

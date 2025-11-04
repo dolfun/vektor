@@ -28,6 +28,16 @@ export type Stage = {
   stageName: string;
 };
 
+function timeIt<T>(label: string, fn: () => T): T {
+  const t0 = performance.now();
+  try {
+    return fn();
+  } finally {
+    const t1 = performance.now();
+    console.log(`[Stages] ${label}: ${(t1 - t0).toFixed(2)} ms`);
+  }
+}
+
 export function createStages(
   vektorModule: VektorModule,
   sourceImageData: ImageData,
@@ -41,43 +51,68 @@ export function createStages(
 
   try {
     const sourceImage = track(
-      convertImageDataToColorImage(vektorModule, sourceImageData)
+      timeIt("convertImageDataToColorImage", () =>
+        convertImageDataToColorImage(vektorModule, sourceImageData)
+      )
     );
 
     const blurFactor = 1.0;
+
     const blurredImage = track(
-      vektorModule.applyAdaptiveBlur(
-        sourceImage,
-        blurFactor,
-        stageParams.kernelSize,
-        stageParams.nrIterations
+      timeIt("vektorModule.applyAdaptiveBlur", () =>
+        vektorModule.applyAdaptiveBlur(
+          sourceImage,
+          blurFactor,
+          stageParams.kernelSize,
+          stageParams.nrIterations
+        )
       )
     );
 
-    const gradientImage = track(vektorModule.computeGradient(blurredImage));
+    const gradientImage = track(
+      timeIt("vektorModule.computeGradient", () =>
+        vektorModule.computeGradient(blurredImage)
+      )
+    );
 
-    const thinnedImage = track(vektorModule.thinEdges(gradientImage));
+    const thinnedImage = track(
+      timeIt("vektorModule.thinEdges", () =>
+        vektorModule.thinEdges(gradientImage)
+      )
+    );
 
-    const threshold = vektorModule.computeThreshold(thinnedImage, 256);
+    const threshold = timeIt("vektorModule.computeThreshold", () =>
+      vektorModule.computeThreshold(thinnedImage, 256)
+    );
+
     const cannyResultImage = track(
-      vektorModule.applyHysteresis(
-        thinnedImage,
-        threshold.first,
-        threshold.second,
-        stageParams.takePercentile
+      timeIt("vektorModule.applyHysteresis", () =>
+        vektorModule.applyHysteresis(
+          thinnedImage,
+          threshold.first,
+          threshold.second,
+          stageParams.takePercentile
+        )
       )
     );
 
-    const curvesVector = track(vektorModule.traceEdges(cannyResultImage));
+    const curvesVector = track(
+      timeIt("vektorModule.traceEdges", () =>
+        vektorModule.traceEdges(cannyResultImage)
+      )
+    );
 
     const greyscaleImageBackground =
       stageParams.backgroundColor === "black" ? 0.0 : 1.0;
+
     const greyscalePlotImage = track(
-      vektorModule.renderCurvesGreyscale(
-        sourceImageData.width * stageParams.plotScale,
-        sourceImageData.height * stageParams.plotScale,
-        curvesVector,
-        greyscaleImageBackground
+      timeIt("vektorModule.renderCurvesGreyscale", () =>
+        vektorModule.renderCurvesGreyscale(
+          sourceImageData.width * stageParams.plotScale,
+          sourceImageData.height * stageParams.plotScale,
+          curvesVector,
+          greyscaleImageBackground
+        )
       )
     );
 
@@ -85,33 +120,54 @@ export function createStages(
       stageParams.backgroundColor === "black"
         ? { r: 0, g: 0, b: 0 }
         : { r: 1, g: 1, b: 1 };
+
     const colorPlotImage = track(
-      vektorModule.renderCurvesColor(
-        sourceImageData.width * stageParams.plotScale,
-        sourceImageData.height * stageParams.plotScale,
-        curvesVector,
-        sourceImage,
-        colorImageBackground
+      timeIt("vektorModule.renderCurvesColor", () =>
+        vektorModule.renderCurvesColor(
+          sourceImageData.width * stageParams.plotScale,
+          sourceImageData.height * stageParams.plotScale,
+          curvesVector,
+          sourceImage,
+          colorImageBackground
+        )
       )
     );
 
-    const blurredImageData = convertColorImageToImageData(blurredImage);
-    const gradientImageData = convertColorImageToImageData(gradientImage);
-    const thinnedImageData = convertColorImageToImageData(thinnedImage);
-    const cannyImageData = convertColorImageToImageData(cannyResultImage);
-    const greyscalePlotImageData =
-      convertColorImageToImageData(greyscalePlotImage);
-    const colorPlotImageData = convertColorImageToImageData(colorPlotImage);
+    const {
+      blurredImageData,
+      gradientImageData,
+      thinnedImageData,
+      cannyImageData,
+      greyscalePlotImageData,
+      colorPlotImageData,
+    } = timeIt("convertColorImageToImageData block", () => {
+      const blurredImageData = convertColorImageToImageData(blurredImage);
+      const gradientImageData = convertColorImageToImageData(gradientImage);
+      const thinnedImageData = convertColorImageToImageData(thinnedImage);
+      const cannyImageData = convertColorImageToImageData(cannyResultImage);
+      const greyscalePlotImageData =
+        convertColorImageToImageData(greyscalePlotImage);
+      const colorPlotImageData = convertColorImageToImageData(colorPlotImage);
+      return {
+        blurredImageData,
+        gradientImageData,
+        thinnedImageData,
+        cannyImageData,
+        greyscalePlotImageData,
+        colorPlotImageData,
+      };
+    });
 
-    const curves: BezierCurve[] = Array.from(
-      { length: curvesVector.size() },
-      (_, i) => {
-        const curve = curvesVector.get(i)!;
-        return {
-          ...curve,
-          color: vektorModule.computeCurveColor(curve, sourceImage),
-        };
-      }
+    const curves: BezierCurve[] = timeIt(
+      "vektorModule.computeCurveColor (all curves)",
+      () =>
+        Array.from({ length: curvesVector.size() }, (_, i) => {
+          const curve = curvesVector.get(i)!;
+          return {
+            ...curve,
+            color: vektorModule.computeCurveColor(curve, sourceImage),
+          };
+        })
     );
 
     const stages: Stage[] = [

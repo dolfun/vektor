@@ -179,6 +179,7 @@ export function FinalStageCanvas({
       setShowBar(!!curves?.length);
       cancelRef.current = { cancelled: false };
       if (!curves?.length) return;
+      if (!calc?.graphpaperBounds) return;
 
       const rawBounds = computeBounds(curves);
       const { width, height } = calc.graphpaperBounds.mathCoordinates;

@@ -202,7 +202,7 @@ private:
   };
 
   int n, m;
-  std::vector<glm::ivec2> m_path;
+  const std::vector<glm::ivec2>& m_path;
   std::vector<int> m_pivot;
   std::vector<Sums> m_sums;
   std::vector<int> m_seq;
@@ -414,15 +414,13 @@ void PathTracer::compute_vertices() noexcept {
     return sum;
   };
 
-  std::vector<glm::dmat3> singular_quadratic_forms(m - 1);
-  for (int i = 0; i < m - 1; ++i) {
-    auto [center, dir] = compute_best_fit_line(m_seq[i], m_seq[i + 1]);
+  auto compute_singular_quadratic_form = [&compute_best_fit_line, this](int idx) {
+    auto [center, dir] = compute_best_fit_line(m_seq[idx], m_seq[idx + 1]);
 
     glm::dmat3 q {};
     double d = glm::dot(dir, dir);
     if (d < eps) {
-      singular_quadratic_forms[i] = q;
-      continue;
+      return q;
     }
 
     glm::dvec3 v;
@@ -434,16 +432,20 @@ void PathTracer::compute_vertices() noexcept {
         q[i][j] = v[i] * v[j] / d;
       }
     }
-    singular_quadratic_forms[i] = q;
-  }
+
+    return q;
+  };
 
   m_vertices.resize(m);
   m_vertices[0] = static_cast<glm::dvec2>(m_path[m_seq[0]]);
   m_vertices[m - 1] = static_cast<glm::dvec2>(m_path[m_seq[m - 1]]);
   auto origin = static_cast<glm::dvec2>(m_path[m_seq[0]]);
+  auto prev_q = compute_singular_quadratic_form(0);
   for (int i = 1; i < m - 1; ++i) {
+    auto curr_q = compute_singular_quadratic_form(i);
     auto s = static_cast<glm::dvec2>(m_path[m_seq[i]]) - origin;
-    auto q = singular_quadratic_forms[i] + singular_quadratic_forms[i - 1];
+    auto q = curr_q + prev_q;
+    prev_q = curr_q;
 
     glm::dvec2 w;
     while (true) {
