@@ -138,7 +138,7 @@ export function ConfigPanel({
           </AccordionDetails>
         </Accordion>
 
-        <Accordion disableGutters>
+        <Accordion disableGutters defaultExpanded>
           <AccordionSummary expandIcon={<span>▾</span>}>
             <Typography variant="body1">Plotting</Typography>
           </AccordionSummary>
