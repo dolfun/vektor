@@ -7,10 +7,6 @@
 #include "bezier_curve.h"
 #include "image.h"
 
-#ifdef __FIX_WASM__
-#include <thread>
-#endif
-
 namespace rng = std::ranges;
 using Image::BinaryImage;
 
@@ -121,6 +117,7 @@ public:
   }
 
   void search_path(std::vector<glm::ivec2>& path, glm::ivec2 v, glm::ivec2 p = { -1, -1 }) {
+    if (path.size() >= max_path_size) return;
     visited[v.x, v.y] = true;
 
     auto prev = (path.empty() ? v : path.back());
@@ -164,8 +161,7 @@ public:
         auto corner = search_corner({ x, y });
         search_path(path, corner);
 
-        constexpr int path_size_threshold = 5;
-        if (path.size() > path_size_threshold) {
+        if (path.size() >= min_path_size) {
           paths.emplace_back(std::move(path));
         }
       }
@@ -175,6 +171,9 @@ public:
   }
 
 private:
+  static constexpr int min_path_size = 4;
+  static constexpr int max_path_size = 512;
+
   DirsMap dirs_map;
   const BinaryImage& m_image;
   Image::Image<char> visited;
@@ -189,10 +188,6 @@ public:
     compute_optimal_sequence();
     compute_vertices();
     compute_bezier_curves();
-
-#ifdef __FIX_WASM__
-    std::this_thread::sleep_for(std::chrono::microseconds(1));
-#endif
   }
 
   auto bezier_curves() const noexcept -> const std::vector<BezierCurve> {
@@ -593,10 +588,19 @@ auto trace(const BinaryImage& image) -> std::vector<BezierCurve> {
   PathFinder path_finder { fixed_image };
   auto paths = path_finder.result();
 
-  std::vector<BezierCurve> curves;
+  std::vector<std::vector<BezierCurve>> curve_vectors;
+  curve_vectors.reserve(paths.size());
+  std::size_t total_size = 0;
   for (const auto& path : paths) {
     PathTracer tracer { path };
-    curves.append_range(tracer.bezier_curves());
+    curve_vectors.emplace_back(std::move(tracer.bezier_curves()));
+    total_size += curve_vectors.back().size();
+  }
+
+  std::vector<BezierCurve> curves;
+  curves.reserve(total_size);
+  for (const auto& v : curve_vectors) {
+    curves.append_range(v);
   }
 
   double scale = 1.0 / image.width();
