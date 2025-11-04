@@ -1,10 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Paper } from "@mui/material";
 import type { Vec2f, BezierCurve } from "@/vektor";
 
 type Bounds = { left: number; right: number; bottom: number; top: number };
 
 const BATCH_SIZE = 20;
+const UPDATE_FREQUENCY = 5;
+const FORCE_UPDATE_FREQ = 50;
 
 function adjustBoundsForAspect({
   bounds,
@@ -66,7 +68,6 @@ function updateBoundsPoint(bounds: Bounds, p: Vec2f) {
 
 function computeBounds(curves: BezierCurve[]): Bounds {
   const MAX_BOUND = 1e6;
-
   const b: Bounds = {
     left: MAX_BOUND,
     right: -MAX_BOUND,
@@ -82,12 +83,18 @@ function computeBounds(curves: BezierCurve[]): Bounds {
   return b;
 }
 
-const nextIdle = () =>
+const nextIdle = (forceUpdate: boolean = false) =>
   new Promise<void>((resolve) => {
-    if ("requestIdleCallback" in window) {
-      (window as any).requestIdleCallback(resolve, { timeout: 50 });
+    if (forceUpdate) {
+      requestAnimationFrame(() => {
+        setTimeout(resolve, FORCE_UPDATE_FREQ);
+      });
     } else {
-      requestAnimationFrame(() => resolve());
+      if ("requestIdleCallback" in window) {
+        (window as any).requestIdleCallback(resolve, { timeout: 50 });
+      } else {
+        requestAnimationFrame(() => resolve());
+      }
     }
   });
 
@@ -107,6 +114,8 @@ async function streamCurves({
   onProgress: (p: number) => void;
 }) {
   let batch: Desmos.ExpressionState[] = [];
+  let batchCount = 0;
+
   for (let i = 0; i < curves.length; i++) {
     if (cancelSignal.cancelled) break;
 
@@ -124,8 +133,12 @@ async function streamCurves({
     if (isBatchEnd) {
       (calculator as any).setExpressions(batch);
       batch = [];
+      batchCount++;
       onProgress((i + 1) / curves.length);
-      await nextIdle();
+
+      const shouldForceUpdate =
+        batchCount % UPDATE_FREQUENCY === 0 || i === curves.length - 1;
+      await nextIdle(shouldForceUpdate);
     }
   }
 }
