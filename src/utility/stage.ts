@@ -1,9 +1,18 @@
 import {
   convertImageDataToColorImage,
   convertColorImageToImageData,
-} from "./image";
-import type { ImageData } from "./image";
-import type { VektorModule, BezierCurve, Vec3f } from "@/vektor";
+} from "@/utility";
+import type { ImageData } from "@/utility";
+import type {
+  VektorModule,
+  ColorImage,
+  GradientImage,
+  GreyscaleImage,
+  BinaryImage,
+  BezierCurveArray,
+  BezierCurve,
+  Vec3f,
+} from "@/vektor";
 
 export type StagesParams = {
   kernelSize: number;
@@ -23,9 +32,59 @@ export const defaultStageParams: StagesParams = {
   desmosColor: "auto",
 };
 
-export type Stage = {
-  imageData: ImageData;
-  stageName: string;
+export const IDX_SOURCE = 0;
+export const IDX_BLUR = 1;
+export const IDX_GRADIENT = 2;
+export const IDX_THINNED = 3;
+export const IDX_CANNY = 4;
+export const IDX_CURVES = 5;
+export const IDX_GREYSCALE_PLOT = 6;
+export const IDX_COLOR_PLOT = 7;
+
+export const STAGE_NAMES = [
+  "Source Image",
+  "Blurred Image",
+  "Gradient Image",
+  "Thinned Image",
+  "Canny Result",
+  "Curves",
+  "Greyscale Plot",
+  "Color Plot",
+] as const;
+
+export const IMAGE_STAGE_INDEXES = [
+  IDX_SOURCE,
+  IDX_BLUR,
+  IDX_GRADIENT,
+  IDX_THINNED,
+  IDX_CANNY,
+  IDX_GREYSCALE_PLOT,
+  IDX_COLOR_PLOT,
+] as const;
+
+export type StageObj =
+  | ColorImage
+  | GradientImage
+  | GreyscaleImage
+  | BinaryImage
+  | BezierCurveArray;
+
+export type StageTuple = {
+  obj: StageObj | null;
+  data: ImageData | null;
+  name: string;
+};
+
+export type ColoredBezier = BezierCurve & { color: Vec3f };
+export type ViewStage = { imageData: ImageData; stageName: string };
+
+export const PARAM_TO_INDEX: Record<keyof StagesParams, number> = {
+  kernelSize: IDX_BLUR,
+  nrIterations: IDX_BLUR,
+  takePercentile: IDX_CANNY,
+  plotScale: IDX_GREYSCALE_PLOT,
+  backgroundColor: IDX_GREYSCALE_PLOT,
+  desmosColor: Number.POSITIVE_INFINITY,
 };
 
 function timeIt<T>(label: string, fn: () => T): T {
@@ -34,158 +93,201 @@ function timeIt<T>(label: string, fn: () => T): T {
     return fn();
   } finally {
     const t1 = performance.now();
-    console.log(`[Stages] ${label}: ${(t1 - t0).toFixed(2)} ms`);
+    console.log(`[vektor] ${label}: ${(t1 - t0).toFixed(2)} ms`);
   }
 }
 
-export function createStages(
+export function initEmptyStageTuples(): StageTuple[] {
+  return STAGE_NAMES.map((name) => ({ obj: null, data: null, name }));
+}
+
+export function safeDelete(
+  obj: { delete(): void; isDeleted?: () => boolean } | null | undefined
+) {
+  if (!obj) return;
+  try {
+    if (typeof obj.isDeleted === "function" && obj.isDeleted()) return;
+  } catch {}
+  try {
+    obj.delete();
+  } catch {}
+}
+
+export function disposeFrom(startIndex: number, tuples: StageTuple[]) {
+  for (let i = startIndex; i < tuples.length; i++) {
+    safeDelete(tuples[i].obj);
+    tuples[i] = { ...tuples[i], obj: null, data: null };
+  }
+}
+
+export function clampScaledSize(
+  w: number,
+  h: number,
+  s: number
+): { W: number; H: number } {
+  return {
+    W: Math.max(1, Math.round(w * s)),
+    H: Math.max(1, Math.round(h * s)),
+  };
+}
+
+/** tiny setter to avoid repeating safeDelete + struct copy */
+function setStage(
+  arr: StageTuple[],
+  idx: number,
+  obj: StageObj | null,
+  data: ImageData | null
+) {
+  safeDelete(arr[idx].obj);
+  arr[idx] = { ...arr[idx], obj, data };
+}
+
+export function buildPipelineFrom(
   vektorModule: VektorModule,
   sourceImageData: ImageData,
-  stageParams: StagesParams
-): { stages: Stage[]; curves: BezierCurve[] } {
-  const disposables: Array<{ delete(): void }> = [];
-  const track = <T extends { delete(): void }>(x: T): T => {
-    disposables.push(x);
-    return x;
-  };
+  stageParams: StagesParams,
+  prevTuples: StageTuple[],
+  startIndex: number
+): { nextTuples: StageTuple[]; curves: ColoredBezier[] } {
+  const next = prevTuples.map((x) => ({ ...x }));
+  const greyscaleBackground =
+    stageParams.backgroundColor === "black" ? 0.0 : 1.0;
+  const colorBackground: Vec3f =
+    stageParams.backgroundColor === "black"
+      ? { r: 0, g: 0, b: 0 }
+      : { r: 1, g: 1, b: 1 };
+
+  const toCleanup: StageObj[] = [];
+  const track = <T extends StageObj>(h: T) => (toCleanup.push(h), h);
 
   try {
-    const sourceImage = track(
-      timeIt("convertImageDataToColorImage", () =>
-        convertImageDataToColorImage(vektorModule, sourceImageData)
-      )
-    );
+    disposeFrom(startIndex, next);
 
-    const blurFactor = 1.0;
-
-    const blurredImage = track(
-      timeIt("vektorModule.applyAdaptiveBlur", () =>
-        vektorModule.applyAdaptiveBlur(
-          sourceImage,
-          blurFactor,
-          stageParams.kernelSize,
-          stageParams.nrIterations
-        )
-      )
-    );
-
-    const gradientImage = track(
-      timeIt("vektorModule.computeGradient", () =>
-        vektorModule.computeGradient(blurredImage)
-      )
-    );
-
-    const thinnedImage = track(
-      timeIt("vektorModule.thinEdges", () =>
-        vektorModule.thinEdges(gradientImage)
-      )
-    );
-
-    const threshold = timeIt("vektorModule.computeThreshold", () =>
-      vektorModule.computeThreshold(thinnedImage, 256)
-    );
-
-    const cannyResultImage = track(
-      timeIt("vektorModule.applyHysteresis", () =>
-        vektorModule.applyHysteresis(
-          thinnedImage,
-          threshold.first,
-          threshold.second,
-          stageParams.takePercentile
-        )
-      )
-    );
-
-    const curvesVector = track(
-      timeIt("vektorModule.traceEdges", () =>
-        vektorModule.traceEdges(cannyResultImage)
-      )
-    );
-
-    const greyscaleImageBackground =
-      stageParams.backgroundColor === "black" ? 0.0 : 1.0;
-
-    const greyscalePlotImage = track(
-      timeIt("vektorModule.renderCurvesGreyscale", () =>
-        vektorModule.renderCurvesGreyscale(
-          sourceImageData.width * stageParams.plotScale,
-          sourceImageData.height * stageParams.plotScale,
-          curvesVector,
-          greyscaleImageBackground
-        )
-      )
-    );
-
-    const colorImageBackground: Vec3f =
-      stageParams.backgroundColor === "black"
-        ? { r: 0, g: 0, b: 0 }
-        : { r: 1, g: 1, b: 1 };
-
-    const colorPlotImage = track(
-      timeIt("vektorModule.renderCurvesColor", () =>
-        vektorModule.renderCurvesColor(
-          sourceImageData.width * stageParams.plotScale,
-          sourceImageData.height * stageParams.plotScale,
-          curvesVector,
-          sourceImage,
-          colorImageBackground
-        )
-      )
-    );
-
-    const {
-      blurredImageData,
-      gradientImageData,
-      thinnedImageData,
-      cannyImageData,
-      greyscalePlotImageData,
-      colorPlotImageData,
-    } = timeIt("convertColorImageToImageData block", () => {
-      const blurredImageData = convertColorImageToImageData(blurredImage);
-      const gradientImageData = convertColorImageToImageData(gradientImage);
-      const thinnedImageData = convertColorImageToImageData(thinnedImage);
-      const cannyImageData = convertColorImageToImageData(cannyResultImage);
-      const greyscalePlotImageData =
-        convertColorImageToImageData(greyscalePlotImage);
-      const colorPlotImageData = convertColorImageToImageData(colorPlotImage);
-      return {
-        blurredImageData,
-        gradientImageData,
-        thinnedImageData,
-        cannyImageData,
-        greyscalePlotImageData,
-        colorPlotImageData,
-      };
-    });
-
-    const curves: BezierCurve[] = timeIt(
-      "vektorModule.computeCurveColor (all curves)",
-      () =>
-        Array.from({ length: curvesVector.size() }, (_, i) => {
-          const curve = curvesVector.get(i)!;
-          return {
-            ...curve,
-            color: vektorModule.computeCurveColor(curve, sourceImage),
-          };
-        })
-    );
-
-    const stages: Stage[] = [
-      { imageData: sourceImageData, stageName: "Source Image" },
-      { imageData: blurredImageData, stageName: "Blurred Image" },
-      { imageData: gradientImageData, stageName: "Gradient Image" },
-      { imageData: thinnedImageData, stageName: "Thinned Image" },
-      { imageData: cannyImageData, stageName: "Canny Result" },
-      { imageData: greyscalePlotImageData, stageName: "Greyscale Plot" },
-      { imageData: colorPlotImageData, stageName: "Color Plot" },
-    ];
-
-    return { stages, curves };
-  } finally {
-    for (let i = disposables.length - 1; i >= 0; i--) {
-      try {
-        disposables[i].delete();
-      } catch {}
+    if (startIndex <= IDX_SOURCE || !next[IDX_SOURCE].obj) {
+      const srcObj: ColorImage = convertImageDataToColorImage(
+        vektorModule,
+        sourceImageData
+      );
+      setStage(next, IDX_SOURCE, srcObj, sourceImageData);
     }
+
+    if (startIndex <= IDX_BLUR || !next[IDX_BLUR].obj) {
+      const srcObj = next[IDX_SOURCE].obj as ColorImage;
+      const blurred = track(
+        timeIt("applyAdaptiveBlur", () =>
+          vektorModule.applyAdaptiveBlur(
+            srcObj,
+            1.0,
+            stageParams.kernelSize,
+            stageParams.nrIterations
+          )
+        )
+      );
+      setStage(next, IDX_BLUR, blurred, convertColorImageToImageData(blurred));
+    }
+
+    if (startIndex <= IDX_GRADIENT || !next[IDX_GRADIENT].obj) {
+      const blurred = next[IDX_BLUR].obj as ColorImage;
+      const gradient = track(
+        timeIt("computeGradient", () => vektorModule.computeGradient(blurred))
+      );
+      setStage(
+        next,
+        IDX_GRADIENT,
+        gradient,
+        convertColorImageToImageData(gradient)
+      );
+    }
+
+    if (startIndex <= IDX_THINNED || !next[IDX_THINNED].obj) {
+      const gradient = next[IDX_GRADIENT].obj as GradientImage;
+      const thinned = track(
+        timeIt("thinEdges", () => vektorModule.thinEdges(gradient))
+      );
+      setStage(
+        next,
+        IDX_THINNED,
+        thinned,
+        convertColorImageToImageData(thinned)
+      );
+    }
+
+    if (startIndex <= IDX_CANNY || !next[IDX_CANNY].obj) {
+      const thinned = next[IDX_THINNED].obj as GreyscaleImage;
+      const thr = timeIt("computeThreshold", () =>
+        vektorModule.computeThreshold(thinned, 256)
+      );
+      const canny = track(
+        timeIt("applyHysteresis", () =>
+          vektorModule.applyHysteresis(
+            thinned,
+            thr.first,
+            thr.second,
+            stageParams.takePercentile
+          )
+        )
+      );
+      setStage(next, IDX_CANNY, canny, convertColorImageToImageData(canny));
+    }
+
+    if (startIndex <= IDX_CURVES || !next[IDX_CURVES].obj) {
+      const canny = next[IDX_CANNY].obj as BinaryImage;
+      const curvesArray = track(
+        timeIt("traceEdges", () => vektorModule.traceEdges(canny))
+      );
+      setStage(next, IDX_CURVES, curvesArray, null);
+    }
+
+    const curvesArray = next[IDX_CURVES].obj as BezierCurveArray;
+    const sourceObj = next[IDX_SOURCE].obj as ColorImage;
+
+    const curves: ColoredBezier[] = Array.from(
+      { length: curvesArray.size() },
+      (_, i) => {
+        const c = curvesArray.get(i)!;
+        const color = vektorModule.computeCurveColor(c, sourceObj);
+        return { ...c, color };
+      }
+    );
+
+    const { W, H } = clampScaledSize(
+      sourceImageData.width,
+      sourceImageData.height,
+      stageParams.plotScale
+    );
+
+    if (startIndex <= IDX_GREYSCALE_PLOT || !next[IDX_GREYSCALE_PLOT].data) {
+      const gsPlot = timeIt("renderCurvesGreyscale", () =>
+        vektorModule.renderCurvesGreyscale(
+          W,
+          H,
+          curvesArray,
+          greyscaleBackground
+        )
+      );
+      const gsData = convertColorImageToImageData(gsPlot);
+      safeDelete(gsPlot);
+      setStage(next, IDX_GREYSCALE_PLOT, null, gsData);
+    }
+
+    if (startIndex <= IDX_COLOR_PLOT || !next[IDX_COLOR_PLOT].data) {
+      const colorPlot = timeIt("renderCurvesColor", () =>
+        vektorModule.renderCurvesColor(
+          W,
+          H,
+          curvesArray,
+          sourceObj,
+          colorBackground
+        )
+      );
+      const colorData = convertColorImageToImageData(colorPlot);
+      safeDelete(colorPlot);
+      setStage(next, IDX_COLOR_PLOT, null, colorData);
+    }
+
+    return { nextTuples: next, curves };
+  } catch (e) {
+    for (const h of toCleanup) safeDelete(h);
+    throw e;
   }
 }
