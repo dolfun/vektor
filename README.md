@@ -10,4 +10,8 @@ Use ``` -c ``` for colored output.
 
 ## Sample
 
-![Nobita](https://i.imgur.com/mOlH516.png)
+![Nobita](./images/demo.png)
+
+## Frontend
+
+![Frontend](./images/frontend.png)
