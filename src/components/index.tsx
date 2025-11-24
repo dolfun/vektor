@@ -1,3 +1,3 @@
-export { ConfigPanel } from "./ConfigPanel";
-export { MultiStageCanvas } from "./MultiStageCanvas";
-export { FinalStageCanvas } from "./FinalStageCanvas";
+export * from "./ConfigPanel";
+export * from "./MultiStageCanvas";
+export * from "./FinalStageCanvas";

@@ -15,40 +15,51 @@ import {
   RadioGroup,
 } from "@mui/material";
 import React from "react";
-import type { StagesParams } from "@/utility";
-import { defaultStageParams } from "@/utility";
+
+import { useVektorModule } from "@/hooks";
+import type { PipelineConfig } from "@/vektor";
 
 type Props = {
   showFinal: boolean;
   onToggleFinal: (v: boolean) => void;
-  stageParams: StagesParams;
-  setStageParams: React.Dispatch<React.SetStateAction<StagesParams>>;
+  pipelineConfig: PipelineConfig;
+  setPipelineConfig: React.Dispatch<React.SetStateAction<PipelineConfig>>;
   inputRef: React.RefObject<HTMLInputElement | null>;
 };
+
+const marksPlotScale = [
+  { value: 1, label: "1x" },
+  { value: 2, label: "2x" },
+  { value: 3, label: "3x" },
+  { value: 4, label: "4x" },
+];
 
 export function ConfigPanel({
   showFinal,
   onToggleFinal,
-  stageParams,
-  setStageParams,
+  pipelineConfig,
+  setPipelineConfig,
   inputRef,
 }: Props) {
-  const handleParamChange =
-    <K extends keyof StagesParams>(key: K) =>
+  const vektorModule = useVektorModule();
+
+  const handleSliderChange =
+    (key: keyof PipelineConfig, shouldRound: boolean = false) =>
     (_: Event, value: number | number[]) => {
-      const v = Array.isArray(value) ? value[0] : value;
-      setStageParams((prev) => ({ ...prev, [key]: v as StagesParams[K] }));
+      let paramValue = Array.isArray(value) ? value[0] : value;
+
+      if (shouldRound) {
+        paramValue = Math.round(paramValue);
+      }
+
+      setPipelineConfig((prev) => ({
+        ...prev,
+        [key]: paramValue,
+      }));
     };
 
-  const marksPlotScale = [
-    { value: 1, label: "1x" },
-    { value: 2, label: "2x" },
-    { value: 3, label: "3x" },
-    { value: 4, label: "4x" },
-  ];
-
   const handleReset = () => {
-    setStageParams(defaultStageParams);
+    setPipelineConfig(vektorModule.defaultPipelineConfig);
   };
 
   return (
@@ -79,10 +90,8 @@ export function ConfigPanel({
                   Kernel Size
                 </Typography>
                 <Slider
-                  value={stageParams.kernelSize}
-                  onChange={(_, v) =>
-                    handleParamChange("kernelSize")(_, Math.round(v as number))
-                  }
+                  value={pipelineConfig.kernelSize}
+                  onChange={handleSliderChange("kernelSize", true)}
                   min={1}
                   max={3}
                   step={1}
@@ -96,13 +105,8 @@ export function ConfigPanel({
                   # Iterations
                 </Typography>
                 <Slider
-                  value={stageParams.nrIterations}
-                  onChange={(_, v) =>
-                    handleParamChange("nrIterations")(
-                      _,
-                      Math.round(v as number)
-                    )
-                  }
+                  value={pipelineConfig.nrIterations}
+                  onChange={handleSliderChange("nrIterations", true)}
                   min={1}
                   max={4}
                   step={1}
@@ -125,8 +129,8 @@ export function ConfigPanel({
                   Take Percentile
                 </Typography>
                 <Slider
-                  value={stageParams.takePercentile}
-                  onChange={handleParamChange("takePercentile")}
+                  value={pipelineConfig.takePercentile}
+                  onChange={handleSliderChange("takePercentile", false)}
                   min={0}
                   max={1}
                   step={0.01}
@@ -149,10 +153,8 @@ export function ConfigPanel({
                   Plot Scale
                 </Typography>
                 <Slider
-                  value={stageParams.plotScale}
-                  onChange={(_, v) =>
-                    handleParamChange("plotScale")(_, Math.round(v as number))
-                  }
+                  value={pipelineConfig.plotScale}
+                  onChange={handleSliderChange("plotScale", true)}
                   min={1}
                   max={4}
                   step={1}
@@ -170,14 +172,22 @@ export function ConfigPanel({
                   row
                   aria-label="Background Color"
                   name="background-color"
-                  value={stageParams.backgroundColor}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setStageParams((prev) => ({
-                      ...prev,
-                      backgroundColor: e.target
-                        .value as StagesParams["backgroundColor"],
-                    }))
+                  value={
+                    pipelineConfig.backgroundColor ===
+                    vektorModule.BackgroundColor.black
+                      ? "black"
+                      : "white"
                   }
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    const val = e.target.value;
+                    setPipelineConfig((prev) => ({
+                      ...prev,
+                      backgroundColor:
+                        val === "black"
+                          ? vektorModule.BackgroundColor.black
+                          : vektorModule.BackgroundColor.white,
+                    }));
+                  }}
                 >
                   <FormControlLabel
                     value="black"
@@ -200,17 +210,25 @@ export function ConfigPanel({
                   row
                   aria-label="Desmos Color"
                   name="desmos-color"
-                  value={stageParams.desmosColor}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setStageParams((prev) => ({
-                      ...prev,
-                      desmosColor: e.target
-                        .value as StagesParams["desmosColor"],
-                    }))
+                  value={
+                    pipelineConfig.desmosColor ===
+                    vektorModule.DesmosColor.colorful
+                      ? "colorful"
+                      : "solid"
                   }
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    const val = e.target.value;
+                    setPipelineConfig((prev) => ({
+                      ...prev,
+                      desmosColor:
+                        val === "colorful"
+                          ? vektorModule.DesmosColor.colorful
+                          : vektorModule.DesmosColor.solid,
+                    }));
+                  }}
                 >
                   <FormControlLabel
-                    value="auto"
+                    value="colorful"
                     control={<Radio />}
                     label="Colorful"
                   />

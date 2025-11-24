@@ -108,7 +108,7 @@ async function streamCurves({
 }: {
   calculator: Desmos.Calculator;
   curves: BezierCurve[];
-  desmosColor: "solid" | "auto";
+  desmosColor: "solid" | "colorful";
   invertedColors: boolean;
   cancelSignal: { cancelled: boolean };
   onProgress: (p: number) => void;
@@ -119,15 +119,15 @@ async function streamCurves({
   for (let i = 0; i < curves.length; i++) {
     if (cancelSignal.cancelled) break;
 
-    const c = curves[i];
+    const curve = curves[i];
     const { r, g, b } =
-      desmosColor === "solid" ? { r: 0.78, g: 0.26, b: 0.25 } : c.color;
+      desmosColor === "solid" ? { r: 0.78, g: 0.26, b: 0.25 } : curve.color;
     const color = `#${toHexByte(r, invertedColors)}${toHexByte(
       g,
       invertedColors
     )}${toHexByte(b, invertedColors)}`.toUpperCase();
 
-    batch.push({ id: `c_${i}`, latex: makeLatex(c), color });
+    batch.push({ id: `c_${i}`, latex: makeLatex(curve), color });
 
     const isBatchEnd = (i + 1) % BATCH_SIZE === 0 || i === curves.length - 1;
     if (isBatchEnd) {
@@ -144,12 +144,12 @@ async function streamCurves({
 }
 
 export function FinalStageCanvas({
-  curves,
+  getCurves,
   desmosColor,
   invertedColors,
 }: {
-  curves: BezierCurve[] | null;
-  desmosColor: "solid" | "auto";
+  getCurves: () => BezierCurve[];
+  desmosColor: "solid" | "colorful";
   invertedColors: boolean;
 }) {
   const graphRef = useRef<HTMLDivElement | null>(null);
@@ -188,6 +188,8 @@ export function FinalStageCanvas({
     cancelRef.current.cancelled = true;
 
     Promise.resolve().then(async () => {
+      const curves = getCurves();
+
       setProgress(0);
       setShowBar(!!curves?.length);
       cancelRef.current = { cancelled: false };
@@ -219,7 +221,7 @@ export function FinalStageCanvas({
     return () => {
       cancelRef.current.cancelled = true;
     };
-  }, [curves, desmosColor, invertedColors]);
+  }, [getCurves, desmosColor, invertedColors]);
 
   return (
     <Paper

@@ -2,6 +2,7 @@
 #include <map>
 #include <string>
 
+#include "vektor/bezier_curve.h"
 #include "vektor/canny_edge_detector.h"
 #include "vektor/image_io.h"
 #include "vektor/renderer.h"
@@ -26,20 +27,25 @@ int main(int argc, char** argv) {
 
   try {
     std::string path { argv[1] };
-    auto image = Image::load(path.c_str(), Canny::padding_requirement);
-    auto canny_result = Canny::detect_edges(image);
+    auto source_image = Image::load(path.c_str(), Canny::padding_requirement);
+    auto canny_result = Canny::detect_edges(source_image);
     auto curves = Tracer::trace(canny_result);
+    std::vector<BezierCurveWithColor> colored_curves(curves.begin(), curves.end());
 
-    int width = image.width() * std::stof(args["-s"]);
-    int height = image.height() * std::stof(args["-s"]);
+    int width = source_image.width() * std::stof(args["-s"]);
+    int height = source_image.height() * std::stof(args["-s"]);
 
     std::string output_path = args["-o"];
     if (args.contains("-c")) {
-      auto result = Renderer::render_color(width, height, curves, image);
+      for (auto& [curve, color] : colored_curves) {
+        color = Renderer::compute_curve_color(curve, source_image);
+      }
+
+      auto result = Renderer::render_color(width, height, colored_curves);
       Image::save_as_png(result, output_path.c_str());
 
     } else {
-      auto result = Renderer::render_greyscale(width, height, curves);
+      auto result = Renderer::render_greyscale(width, height, colored_curves);
       Image::save_as_png(result, output_path.c_str());
     }
 

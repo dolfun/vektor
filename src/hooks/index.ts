@@ -1,1 +1,2 @@
-export { useVektorModule } from "./useVektorModule";
+export * from "./useVektorModule";
+export * from "./usePipeline";

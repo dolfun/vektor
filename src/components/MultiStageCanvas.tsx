@@ -1,5 +1,4 @@
-import { useState, useRef, useLayoutEffect, useCallback } from "react";
-
+import { useState, useRef, useLayoutEffect, useCallback, useMemo } from "react";
 import {
   Box,
   Button,
@@ -12,14 +11,19 @@ import {
   Typography,
 } from "@mui/material";
 import { ArrowBack, ArrowForward } from "@mui/icons-material";
+import type { ImageView } from "@/vektor";
 
-import type { Stage } from "@/utility";
-
-export function MultiStageCanvas({ stages }: { stages: Stage[] }) {
+export function MultiStageCanvas({
+  getImageViews,
+}: {
+  getImageViews: () => ImageView[];
+}) {
   const [index, setIndex] = useState(0);
-  const stage = stages[index];
-  const prev = () => setIndex((i) => (i - 1 + stages.length) % stages.length);
-  const next = () => setIndex((i) => (i + 1) % stages.length);
+  const imageViews = useMemo(() => getImageViews(), [getImageViews]);
+  const imageView = imageViews[index];
+  const prev = () =>
+    setIndex((i) => (i - 1 + imageViews.length) % imageViews.length);
+  const next = () => setIndex((i) => (i + 1) % imageViews.length);
 
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -39,9 +43,7 @@ export function MultiStageCanvas({ stages }: { stages: Stage[] }) {
   });
 
   const refreshOffscreen = useCallback(() => {
-    const {
-      imageData: { data, width, height },
-    } = stage;
+    const { data, width, height } = imageView;
     let off = offscreenRef.current;
     if (!off) {
       off = document.createElement("canvas");
@@ -53,14 +55,14 @@ export function MultiStageCanvas({ stages }: { stages: Stage[] }) {
     const img = g.createImageData(width, height);
     img.data.set(data);
     g.putImageData(img, 0, 0);
-  }, [stage]);
+  }, [imageView]);
 
   const fitAndCenter = useCallback(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
     const { clientWidth: cw, clientHeight: ch } = wrap;
     if (!cw || !ch) return;
-    const { width, height } = stage.imageData;
+    const { width, height } = imageView;
     const s = Math.min(cw / width, ch / height);
     const cx = (cw - width * s) / 2;
     const cy = (ch - height * s) / 2;
@@ -69,12 +71,12 @@ export function MultiStageCanvas({ stages }: { stages: Stage[] }) {
     setScale(s);
     setTx(cx);
     setTy(cy);
-  }, [stage]);
+  }, [imageView]);
 
   useLayoutEffect(() => {
     refreshOffscreen();
     fitAndCenter();
-  }, [stage, refreshOffscreen, fitAndCenter]);
+  }, [imageView, refreshOffscreen, fitAndCenter]);
 
   useLayoutEffect(() => {
     const wrap = wrapRef.current;
@@ -105,7 +107,7 @@ export function MultiStageCanvas({ stages }: { stages: Stage[] }) {
       canvas.height / scale
     );
     ctx.drawImage(off, 0, 0);
-  }, [scale, tx, ty, pixelated, stage]);
+  }, [scale, tx, ty, pixelated, imageView]);
 
   const zoomTo = (v: number) => {
     const wrap = wrapRef.current;
@@ -123,11 +125,13 @@ export function MultiStageCanvas({ stages }: { stages: Stage[] }) {
     (e.currentTarget as any).setPointerCapture?.(e.pointerId);
     setDrag({ on: true, x: e.clientX, y: e.clientY, tx0: tx, ty0: ty });
   };
+
   const onPointerMove: React.PointerEventHandler<HTMLCanvasElement> = (e) => {
     if (!drag.on) return;
     setTx(drag.tx0 + (e.clientX - drag.x));
     setTy(drag.ty0 + (e.clientY - drag.y));
   };
+
   const endDrag = () => setDrag((d) => ({ ...d, on: false }));
 
   const resetView = () => fitAndCenter();
@@ -212,9 +216,9 @@ export function MultiStageCanvas({ stages }: { stages: Stage[] }) {
             px: 1,
             minWidth: 120,
           }}
-          title={stage.stageName}
+          title={String(imageView.name)}
         >
-          {stage.stageName}
+          {String(imageView.name)}
         </Typography>
         <IconButton color="primary" onClick={next} aria-label="Next stage">
           <ArrowForward />

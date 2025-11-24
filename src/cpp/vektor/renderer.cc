@@ -2,6 +2,8 @@
 
 #include <glm/glm.hpp>
 
+#include "bezier_curve.h"
+
 void draw_line(glm::dvec2 p1, glm::dvec2 p2, auto&& f) {
   auto i_part = [](double x) { return glm::floor(x); };
 
@@ -97,14 +99,14 @@ namespace Renderer {
 auto render_greyscale(
   int width,
   int height,
-  const std::vector<BezierCurve>& curves,
+  const std::vector<BezierCurveWithColor>& curves,
   float background_value
 ) -> Image::GreyscaleImage {
   Image::GreyscaleImage result { width, height };
   Image::apply(width, height, [&](int x, int y) { result[x, y] = background_value; });
 
-  for (auto curve : curves) {
-    curve.apply_scale(width);
+  for (auto [curve, _] : curves) {
+    BezierCurve::scale(curve, width);
 
     draw_curve(curve, [&](float x, float y, float c) {
       x = glm::round(x), y = glm::round(y);
@@ -115,13 +117,12 @@ auto render_greyscale(
   return result;
 }
 
-glm::vec3 compute_curve_color(const BezierCurve& curve, const Image::ColorImage& image) {
-  auto upscaled_curve = curve;
-  upscaled_curve.apply_scale(image.width());
+glm::vec3 compute_curve_color(BezierCurve curve, const Image::RGBImage& image) {
+  BezierCurve::scale(curve, image.width());
 
   glm::vec3 path_color {};
   float weight_sum = 0.0f;
-  draw_curve(upscaled_curve, [&](float x, float y, float c) {
+  draw_curve(curve, [&](float x, float y, float c) {
     x = glm::round(x), y = glm::round(y);
     path_color += image[x, y] * c;
     weight_sum += c;
@@ -134,20 +135,17 @@ glm::vec3 compute_curve_color(const BezierCurve& curve, const Image::ColorImage&
 auto render_color(
   int width,
   int height,
-  const std::vector<BezierCurve>& curves,
-  const Image::ColorImage& color_image,
+  const std::vector<BezierCurveWithColor>& curves,
   glm::vec3 background_color
-) -> Image::ColorImage {
-  Image::ColorImage result { width, height };
+) -> Image::RGBImage {
+  Image::RGBImage result { width, height };
   Image::apply(width, height, [&](int x, int y) { result[x, y] = background_color; });
 
-  for (auto curve : curves) {
-    auto curve_color = compute_curve_color(curve, color_image);
-
-    curve.apply_scale(width);
+  for (auto [curve, color] : curves) {
+    BezierCurve::scale(curve, width);
     draw_curve(curve, [&](float x, float y, float c) {
       x = glm::round(x), y = glm::round(y);
-      result[x, y] = glm::mix(result[x, y], curve_color, c);
+      result[x, y] = glm::mix(result[x, y], color, c);
     });
   }
 

@@ -97,8 +97,7 @@ BinaryImage fix_image(const BinaryImage& img) {
 class PathFinder {
 public:
   PathFinder(const BinaryImage& image)
-      : m_image { image }, visited { m_image.width(), m_image.height(), DirsMap::R } {
-  }
+      : m_image { image }, visited { m_image.width(), m_image.height(), DirsMap::R } {}
 
   glm::ivec2 search_corner(glm::ivec2 v, glm::ivec2 p = { -1, -1 }) {
     visited[v.x, v.y] = true;
@@ -607,7 +606,7 @@ auto trace(const BinaryImage& image) -> std::vector<BezierCurve> {
 
   double scale = 1.0 / image.width();
   for (auto& curve : curves) {
-    curve.apply_scale(scale);
+    BezierCurve::scale(curve, scale);
   }
 
   return curves;

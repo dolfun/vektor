@@ -9,24 +9,24 @@
 #include "image.h"
 
 using Image::BinaryImage;
-using Image::ColorImage;
 using Image::GradientImage;
 using Image::GreyscaleImage;
+using Image::RGBImage;
 constexpr auto pi = std::numbers::pi_v<float>;
 
 namespace Canny {
 
-ColorImage
-apply_adaptive_blur(const ColorImage& image, float h, int kernel_size, int nr_iterations) {
+RGBImage apply_adaptive_blur(const RGBImage& image, float h, int kernel_size, int nr_iterations) {
   int width = image.width();
   int height = image.height();
 
-  ColorImage result { image };
+  const int padding = std::max(kernel_size, Canny::gradient_x_kernel.size() / 2);
+  RGBImage result { image, padding };
   for (int iter = 0; iter < nr_iterations; ++iter) {
-    ColorImage source = std::move(result);
-    result = ColorImage { width, height, Canny::gradient_x_kernel.size() / 2 };
+    RGBImage source = std::move(result);
+    result = RGBImage { width, height, padding };
 
-    GreyscaleImage weights { width, height, 1 };
+    GreyscaleImage weights { width, height, padding };
     Image::apply(width, height, [&](int x, int y) {
       auto gx = Image::evaluate_kernel<glm::vec3>(Canny::gradient_x_kernel, source, x, y);
       auto gy = Image::evaluate_kernel<glm::vec3>(Canny::gradient_y_kernel, source, x, y);
@@ -51,7 +51,7 @@ apply_adaptive_blur(const ColorImage& image, float h, int kernel_size, int nr_it
   return result;
 }
 
-GradientImage compute_gradient(const ColorImage& image) {
+GradientImage compute_gradient(const RGBImage& image) {
   int width = image.width();
   int height = image.height();
   GradientImage result { width, height, 1 };
@@ -254,7 +254,7 @@ apply_hysteresis(const GreyscaleImage& image, float low, float high, float take_
   return result;
 }
 
-BinaryImage detect_edges(const ColorImage& source_image) {
+BinaryImage detect_edges(const RGBImage& source_image) {
   auto blurred_image = apply_adaptive_blur(source_image);
   auto gradient_image = compute_gradient(blurred_image);
   auto thinned_image = thin_edges(gradient_image);

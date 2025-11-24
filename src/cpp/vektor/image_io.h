@@ -3,7 +3,7 @@
 
 namespace Image {
 
-ColorImage load(const char*, int padding = 0);
+RGBImage load(const char*, int padding = 0);
 
 extern int (*stbi_write_png_impl)(const char*, int, int, int, const void*, int);
 

@@ -9,7 +9,7 @@
 
 namespace Image {
 
-ColorImage load(const char* path, int padding) {
+RGBImage load(const char* path, int padding) {
   int width, height, nr_channels;
   unsigned char* data = stbi_load(path, &width, &height, &nr_channels, 0);
 
@@ -17,7 +17,7 @@ ColorImage load(const char* path, int padding) {
     throw std::runtime_error("File not found: " + std::string(path));
   }
 
-  ColorImage image { width, height, padding };
+  RGBImage image { width, height, padding };
   apply(width, height, [&](int x, int y) {
     int index = y * width + x;
     float r = static_cast<float>(data[index * nr_channels + 0]);

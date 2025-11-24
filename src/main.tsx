@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 
-import { useVektorModule } from "@/hooks";
+import { VektorModuleProvider } from "@/hooks";
 import App from "@/App";
 
 const darkTheme = createTheme({
@@ -11,12 +11,12 @@ const darkTheme = createTheme({
 });
 
 function Main() {
-  const vektorModule = useVektorModule();
-
   return (
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
-      {vektorModule && <App vektorModule={vektorModule} />}
+      <VektorModuleProvider>
+        <App />
+      </VektorModuleProvider>
     </ThemeProvider>
   );
 }

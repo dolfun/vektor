@@ -33,12 +33,12 @@ constexpr Image::Kernel<5> gradient_y_kernel {
 constexpr int MAX_BINS = 256;
 constexpr int padding_requirement = gradient_x_kernel.size() / 2;
 
-Image::ColorImage apply_adaptive_blur(const Image::ColorImage&, float = 1.0f, int = 1, int = 1);
-Image::GradientImage compute_gradient(const Image::ColorImage&);
+Image::RGBImage apply_adaptive_blur(const Image::RGBImage&, float = 1.0f, int = 1, int = 1);
+Image::GradientImage compute_gradient(const Image::RGBImage&);
 Image::GreyscaleImage thin_edges(const Image::GradientImage&);
 std::pair<float, float> compute_threshold(const Image::GreyscaleImage&, int = 256);
 Image::BinaryImage apply_hysteresis(const Image::GreyscaleImage&, float, float, float = 0.25f);
 
-Image::BinaryImage detect_edges(const Image::ColorImage&);
+Image::BinaryImage detect_edges(const Image::RGBImage&);
 
 }  // namespace Canny

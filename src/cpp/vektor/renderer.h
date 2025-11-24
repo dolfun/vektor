@@ -4,17 +4,12 @@
 
 namespace Renderer {
 
-auto render_greyscale(int, int, const std::vector<BezierCurve>&, float = 0.0f)
+auto render_greyscale(int, int, const std::vector<BezierCurveWithColor>&, float = 0.0f)
   -> Image::GreyscaleImage;
 
-glm::vec3 compute_curve_color(const BezierCurve&, const Image::ColorImage&);
+glm::vec3 compute_curve_color(BezierCurve, const Image::RGBImage&);
 
-auto render_color(
-  int,
-  int,
-  const std::vector<BezierCurve>&,
-  const Image::ColorImage&,
-  glm::vec3 = glm::vec3(0.0f)
-) -> Image::ColorImage;
+auto render_color(int, int, const std::vector<BezierCurveWithColor>&, glm::vec3 = glm::vec3(0.0f))
+  -> Image::RGBImage;
 
 };  // namespace Renderer

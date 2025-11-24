@@ -2,6 +2,7 @@
 interface WasmModule {
 }
 
+type EmbindString = ArrayBuffer|Uint8Array|Uint8ClampedArray|Int8Array|string;
 export interface ClassHandle {
   isAliasOf(other: ClassHandle): boolean;
   delete(): void;
@@ -11,45 +12,31 @@ export interface ClassHandle {
   [Symbol.dispose](): void;
   clone(): this;
 }
-export interface BezierCurveArray extends ClassHandle {
-  size(): number;
-  get(_0: number): BezierCurve | undefined;
-  push_back(_0: BezierCurve): void;
-  resize(_0: number, _1: BezierCurve): void;
-  set(_0: number, _1: BezierCurve): boolean;
+export interface BackgroundColorValue<T extends number> {
+  value: T;
+}
+export type BackgroundColor = BackgroundColorValue<0>|BackgroundColorValue<1>;
+
+export interface DesmosColorValue<T extends number> {
+  value: T;
+}
+export type DesmosColor = DesmosColorValue<0>|DesmosColorValue<1>;
+
+export interface Pipeline extends ClassHandle {
+  readonly config: PipelineConfig;
+  readonly imageViews: any;
+  readonly curves: any;
+  setConfig(_0: PipelineConfig): void;
+  setSourceImage(_0: any): void;
 }
 
-export interface ColorImage extends ClassHandle {
-  readonly width: number;
-  readonly height: number;
-  getPixel(_0: number, _1: number): Vec3f;
-  setPixel(_0: number, _1: number, _2: Vec3f): void;
-}
-
-export interface GradientImage extends ClassHandle {
-  readonly width: number;
-  readonly height: number;
-  getPixel(_0: number, _1: number): NumberPair;
-  setPixel(_0: number, _1: number, _2: NumberPair): void;
-}
-
-export interface GreyscaleImage extends ClassHandle {
-  readonly width: number;
-  readonly height: number;
-  getPixel(_0: number, _1: number): number;
-  setPixel(_0: number, _1: number, _2: number): void;
-}
-
-export interface BinaryImage extends ClassHandle {
-  readonly width: number;
-  readonly height: number;
-  getPixel(_0: number, _1: number): number;
-  setPixel(_0: number, _1: number, _2: number): void;
-}
-
-export type NumberPair = {
-  first: number,
-  second: number
+export type PipelineConfig = {
+  kernelSize: number,
+  nrIterations: number,
+  takePercentile: number,
+  plotScale: number,
+  backgroundColor: BackgroundColor,
+  desmosColor: DesmosColor
 };
 
 export type Vec3f = {
@@ -67,34 +54,24 @@ export type BezierCurve = {
   p0: Vec2f,
   p1: Vec2f,
   p2: Vec2f,
-  p3: Vec2f
+  p3: Vec2f,
+  color: Vec3f
+};
+
+export type ImageView = {
+  name: EmbindString,
+  width: number,
+  height: number,
+  data: any
 };
 
 interface EmbindModule {
-  BezierCurveArray: {
-    new(): BezierCurveArray;
+  BackgroundColor: {black: BackgroundColorValue<0>, white: BackgroundColorValue<1>};
+  DesmosColor: {solid: DesmosColorValue<0>, colorful: DesmosColorValue<1>};
+  Pipeline: {
+    new(): Pipeline;
   };
-  ColorImage: {
-    new(_0: number, _1: number): ColorImage;
-  };
-  GradientImage: {
-    new(_0: number, _1: number): GradientImage;
-  };
-  GreyscaleImage: {
-    new(_0: number, _1: number): GreyscaleImage;
-  };
-  BinaryImage: {
-    new(_0: number, _1: number): BinaryImage;
-  };
-  computeGradient(_0: ColorImage): GradientImage;
-  thinEdges(_0: GradientImage): GreyscaleImage;
-  traceEdges(_0: BinaryImage): BezierCurveArray;
-  computeThreshold(_0: GreyscaleImage, _1: number): NumberPair;
-  renderCurvesColor(_0: number, _1: number, _2: BezierCurveArray, _3: ColorImage, _4: Vec3f): ColorImage;
-  applyAdaptiveBlur(_0: ColorImage, _1: number, _2: number, _3: number): ColorImage;
-  applyHysteresis(_0: GreyscaleImage, _1: number, _2: number, _3: number): BinaryImage;
-  renderCurvesGreyscale(_0: number, _1: number, _2: BezierCurveArray, _3: number): GreyscaleImage;
-  computeCurveColor(_0: BezierCurve, _1: ColorImage): Vec3f;
+  defaultPipelineConfig: PipelineConfig;
 }
 
 export type MainModule = WasmModule & EmbindModule;
